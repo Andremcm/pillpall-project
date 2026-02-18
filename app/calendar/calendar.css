@@ -1,0 +1,310 @@
+/* ===========================
+   SET REMINDER PAGE STYLES
+   =========================== */
+
+.reminder-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* ===========================
+   HEADER
+   =========================== */
+.reminder-header {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.back-btn {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.back-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.page-title {
+  color: white;
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0;
+}
+
+/* ===========================
+   MAIN CONTENT
+   =========================== */
+.reminder-main {
+  padding: 40px 24px;
+  max-width: 600px;
+  margin: 0 auto;
+  animation: slideUp 0.5s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===========================
+   FORM CARD
+   =========================== */
+.form-card {
+  background: white;
+  border-radius: 24px;
+  padding: 40px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.form-icon {
+  font-size: 64px;
+  text-align: center;
+  margin-bottom: 16px;
+  animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.form-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #333;
+  text-align: center;
+  margin: 0 0 32px 0;
+}
+
+/* ===========================
+   FORM
+   =========================== */
+.reminder-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.label-icon {
+  font-size: 20px;
+}
+
+.form-group input,
+.form-group select {
+  padding: 16px;
+  font-size: 18px;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  outline: none;
+  font-family: inherit;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+}
+
+.form-group input::placeholder {
+  color: #aaa;
+}
+
+.form-group select {
+  cursor: pointer;
+  background: white;
+  color: #333; /* FIXED: Make dropdown text black */
+  font-weight: 500; /* FIXED: Make it bolder */
+}
+
+.form-group select option {
+  color: #333; /* FIXED: Make dropdown options black */
+  font-weight: 500;
+  background: white;
+}
+
+/* Time input styling */
+.form-group input[type="time"] {
+  cursor: pointer;
+}
+
+/* Number input styling - FIXED VERSION */
+.form-group input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.form-group input[type="number"]::-webkit-outer-spin-button,
+.form-group input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+
+/* ===========================
+   FORM BUTTONS
+   =========================== */
+.form-buttons {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.cancel-btn,
+.save-btn {
+  flex: 1;
+  padding: 16px;
+  font-size: 18px;
+  font-weight: 700;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.cancel-btn {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.cancel-btn:hover {
+  background: #e0e0e0;
+}
+
+.save-btn {
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  color: white;
+}
+
+.save-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(76, 175, 80, 0.4);
+}
+
+.save-btn:active,
+.cancel-btn:active {
+  transform: translateY(0);
+}
+
+/* ===========================
+   ANIMATIONS
+   =========================== */
+.form-group {
+  animation: fadeInUp 0.6s ease-out backwards;
+}
+
+.form-group:nth-child(1) { animation-delay: 0.1s; }
+.form-group:nth-child(2) { animation-delay: 0.2s; }
+.form-group:nth-child(3) { animation-delay: 0.3s; }
+.form-group:nth-child(4) { animation-delay: 0.4s; }
+.form-group:nth-child(5) { animation-delay: 0.5s; }
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ===========================
+   RESPONSIVE DESIGN
+   =========================== */
+@media (max-width: 768px) {
+  .reminder-header {
+    padding: 16px 20px;
+  }
+
+  .page-title {
+    font-size: 20px;
+  }
+
+  .reminder-main {
+    padding: 24px 16px;
+  }
+
+  .form-card {
+    padding: 32px 24px;
+  }
+
+  .form-title {
+    font-size: 24px;
+  }
+
+  .form-icon {
+    font-size: 48px;
+  }
+
+  .form-group input,
+  .form-group select {
+    font-size: 16px;
+    padding: 14px;
+  }
+
+  .form-buttons {
+    flex-direction: column;
+  }
+
+  .cancel-btn,
+  .save-btn {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .back-btn {
+    padding: 8px 16px;
+    font-size: 14px;
+  }
+
+  .page-title {
+    font-size: 18px;
+  }
+
+  .form-card {
+    padding: 24px 20px;
+  }
+
+  .form-title {
+    font-size: 20px;
+  }
+}
