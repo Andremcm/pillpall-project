@@ -76,9 +76,27 @@ export default function CalendarPage() {
     );
   };
 
-  // Check if date has reminders
+  // Check if date has reminders - FIXED: Only show dots from today onwards
   const hasReminders = (day) => {
-    return reminders.length > 0 && day <= new Date().getDate();
+    const today = new Date();
+    const todayDate = today.getDate();
+    const todayMonth = today.getMonth();
+    const todayYear = today.getFullYear();
+    
+    // Only show dots if we have reminders and day exists
+    if (reminders.length > 0 && day) {
+      // If viewing current month
+      if (currentDate.getMonth() === todayMonth && currentDate.getFullYear() === todayYear) {
+        return day >= todayDate; // FIXED: Show dots from today onwards only
+      }
+      // If viewing future month
+      if (currentDate.getMonth() > todayMonth || currentDate.getFullYear() > todayYear) {
+        return true; // Show dots on all days in future months
+      }
+      // If viewing past month
+      return false; // No dots in past months
+    }
+    return false;
   };
 
   // Handle date selection
