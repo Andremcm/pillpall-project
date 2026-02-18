@@ -149,6 +149,23 @@
 .form-group select {
   cursor: pointer;
   background: white;
+  color: #000 !important; /* FIXED: Force completely BLACK */
+  font-weight: 600 !important; /* FIXED: Force BOLD */
+}
+
+.form-group select option {
+  color: #000 !important; /* FIXED: Force BLACK options with !important */
+  font-weight: 600 !important; /* FIXED: Force BOLD options */
+  background: white !important;
+  padding: 10px;
+}
+
+/* Firefox specific fix for dropdown options */
+@-moz-document url-prefix() {
+  .form-group select option {
+    color: #000;
+    font-weight: 600;
+  }
 }
 
 /* Time input styling */
