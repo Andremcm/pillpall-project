@@ -9,13 +9,19 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@prisma/client": "^7.4.1",
+    "@typescript-eslint/eslint-plugin": "^8.56.1",
+    "@typescript-eslint/parser": "^8.56.1",
+    "bcryptjs": "^3.0.3",
+    "jsonwebtoken": "^9.0.3",
     "next": "16.1.6",
+    "prisma": "^7.4.1",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "eslint": "^9",
+    "eslint": "^10.0.2",
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4"
   }

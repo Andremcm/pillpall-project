@@ -13,29 +13,38 @@ export default function LoginPage() {
     password: ''
   });
 
-  const handleSubmit = (e) => {
+ const handleSubmit = async (e) => {
   e.preventDefault();
-  
+ console.log('handleSubmit called, isLogin:', isLogin); // add this
   if (isLogin) {
-    // Login logic
-    console.log('Logging in with:', formData.email);
-    
-    // Save user email as name (or you can use a separate name field)
-    // Extract name from email (before @)
-    const userName = formData.email.split('@')[0];
-    localStorage.setItem('userName', userName);
-    
-    // Redirect to dashboard
-    router.push('/dashboard');
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: formData.email, password: formData.password })
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      localStorage.setItem('userName', data.name);
+      router.push('/dashboard');
+    } else {
+      alert(data.error);
+    }
+
   } else {
-    // Signup logic
-    console.log('Signing up with:', formData);
-    
-    // Save the full name from signup
-    localStorage.setItem('userName', formData.fullName);
-    
-    // Redirect to dashboard
-    router.push('/dashboard');
+    const res = await fetch('/api/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData)
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      localStorage.setItem('userName', formData.fullName);
+      router.push('/dashboard');
+    } else {
+      alert(data.error);
+    }
   }
 };
 
