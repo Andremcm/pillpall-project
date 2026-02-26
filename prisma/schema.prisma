@@ -11,33 +11,39 @@ model User {
   id          Int          @id @default(autoincrement())
   name        String
   email       String       @unique
-  password    String       // add this
+  password    String
   role        String       @default("user")
   medications Medication[]
 }
 
 model Medication {
-  id        Int        @id @default(autoincrement())
-  userId    Int
-  name      String
-  dosage    String
-  frequency String
-  reminders Reminder[]
-  user      User       @relation(fields: [userId], references: [id])
+  id          Int        @id @default(autoincrement())
+  userId      Int
+  name        String
+  dosage      String
+  frequency   String
+  color       String     @default("#43a047")
+  startDate   DateTime   @default(now())
+  dayOfWeek   Int?
+  customDates String?
+  reminders   Reminder[]
+  user        User       @relation(fields: [userId], references: [id])
 }
 
 model Reminder {
-  id           Int    @id @default(autoincrement())
+  id           Int        @id @default(autoincrement())
   medicationId Int
   reminderTime DateTime
+  secondTime   DateTime?
   logs         Log[]
   medication   Medication @relation(fields: [medicationId], references: [id])
 }
 
 model Log {
-  id          Int      @id @default(autoincrement())
-  reminderId  Int
-  status      String
-  timestamp   DateTime @default(now())
-  reminder    Reminder @relation(fields: [reminderId], references: [id])
+  id         Int      @id @default(autoincrement())
+  reminderId Int
+  status     String
+  timestamp  DateTime @default(now())
+  takenDate  String?
+  reminder   Reminder @relation(fields: [reminderId], references: [id])
 }

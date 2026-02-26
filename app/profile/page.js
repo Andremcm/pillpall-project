@@ -2,343 +2,196 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import './profile.css';
 
 export default function ProfilePage() {
   const router = useRouter();
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
-  // Load user data
   useEffect(() => {
-    const storedName = localStorage.getItem('userName') || 'User';
-    const storedEmail = localStorage.getItem('userEmail') || 'user@example.com';
-    setUserName(storedName);
-    setUserEmail(storedEmail);
+    setUserName(localStorage.getItem('userName') || 'User');
+    setUserEmail(localStorage.getItem('userEmail') || '');
   }, []);
 
-  // Handle logout
+  // Mask: janhudes@gmail.com → janH****@gmail.com
+  const maskEmail = (email) => {
+    if (!email || !email.includes('@')) return email || 'No email set';
+    const [local, domain] = email.split('@');
+    if (local.length <= 2) return `${local}@${domain}`;
+    const visibleLen = Math.min(4, Math.max(1, local.length - 3));
+    const visible = local.slice(0, visibleLen);
+    const masked = '*'.repeat(local.length - visibleLen);
+    return `${visible}${masked}@${domain}`;
+  };
+
+  // Logout: only remove session keys, NOT the DB data
   const handleLogout = () => {
-    if (confirm('Are you sure you want to logout?')) {
-      localStorage.clear();
-      router.push('/login');
+    localStorage.removeItem('userId');
+    localStorage.removeItem('userName');
+    localStorage.removeItem('userEmail');
+    router.push('/login');
+  };
+
+  const handleExportData = async () => {
+    const userId = localStorage.getItem('userId');
+    if (!userId) return;
+    try {
+      const res = await fetch(`/api/reminders?userId=${userId}`);
+      const data = await res.json();
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
+      const a = document.createElement('a');
+      a.setAttribute("href", dataStr);
+      a.setAttribute("download", "pillpal-reminders.json");
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (err) {
+      console.error(err);
     }
   };
 
-  // Handle export data
-  const handleExportData = () => {
-    const reminders = localStorage.getItem('reminders') || '[]';
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(reminders);
-    const downloadAnchorNode = document.createElement('a');
-    downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", "pillpal-reminders.json");
-    document.body.appendChild(downloadAnchorNode);
-    downloadAnchorNode.click();
-    downloadAnchorNode.remove();
-    alert('Data exported successfully!');
+  const fetchHistory = async () => {
+    setHistoryLoading(true);
+    setShowHistory(true);
+    const userId = localStorage.getItem('userId');
+    if (!userId) { setHistoryLoading(false); return; }
+    try {
+      const res = await fetch(`/api/history?userId=${userId}`);
+      const data = await res.json();
+      setHistory(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+    }
+    setHistoryLoading(false);
   };
 
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    const parts = name.trim().split(' ');
+    return parts.length >= 2
+      ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+      : name[0].toUpperCase();
+  };
+
+  const formatHistoryDate = (ts) =>
+    new Date(ts).toLocaleDateString('default', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
+
+  const formatHistoryTime = (ts) =>
+    new Date(ts).toLocaleTimeString('default', { hour: '2-digit', minute: '2-digit' });
+
   return (
-    <div style={styles.container}>
-      {/* Header */}
-      <header style={styles.header}>
-        <button style={styles.backBtn} onClick={() => router.push('/dashboard')}>
-          ← Back
-        </button>
-        <h1 style={styles.pageTitle}>Profile & Settings</h1>
+    <div className="profile-container">
+
+      {/* Logout Modal */}
+      {showLogoutModal && (
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <div className="modal-icon">🚪</div>
+            <h3 className="modal-title">Log Out</h3>
+            <p className="modal-text">Are you sure you want to log out of PillPal?</p>
+            <div className="modal-buttons">
+              <button className="modal-cancel" onClick={() => setShowLogoutModal(false)}>Cancel</button>
+              <button className="modal-confirm modal-danger" onClick={handleLogout}>Log Out</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Medicine History Modal */}
+      {showHistory && (
+        <div className="modal-overlay" onClick={() => setShowHistory(false)}>
+          <div className="history-modal" onClick={e => e.stopPropagation()}>
+            <div className="history-header">
+              <h3 className="history-title">📋 Medicine History</h3>
+              <button className="history-close" onClick={() => setShowHistory(false)}>✕</button>
+            </div>
+            <div className="history-body">
+              {historyLoading ? (
+                <div className="history-empty"><p>Loading...</p></div>
+              ) : history.length === 0 ? (
+                <div className="history-empty">
+                  <span style={{ fontSize: '36px' }}>📭</span>
+                  <p>No medication history yet.</p>
+                  <p className="history-sub">Logs appear after you mark medications as taken.</p>
+                </div>
+              ) : (
+                <div className="history-list">
+                  {history.map((item) => (
+                    <div key={item.logId} className={`history-item ${item.status}`}>
+                      <div className="history-item-left">
+                        <div className="history-pill-icon">💊</div>
+                        <div className="history-info">
+                          <div className="history-med-name">{item.medicine}</div>
+                          <div className="history-med-details">{item.dosage} · {item.frequency}</div>
+                          <div className="history-date">{formatHistoryDate(item.timestamp)}</div>
+                          <div className="history-time">⏰ {formatHistoryTime(item.timestamp)}</div>
+                        </div>
+                      </div>
+                      <span className={`history-badge ${item.status}`}>
+                        {item.status === 'taken' ? '✓ Taken' : '✗ Skipped'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <header className="profile-header">
+        <button className="back-btn" onClick={() => router.push('/dashboard')}>← Back</button>
+        <h1 className="page-title">Profile & Settings</h1>
       </header>
 
-      {/* Main Content */}
-      <main style={styles.main}>
-        {/* Profile Card */}
-        <div style={styles.profileCard}>
-          {/* Profile Picture */}
-          <div style={styles.profilePicture}>
-            <div style={styles.pictureCircle}>👤</div>
-            <button style={styles.changePictureBtn}>
-              Tap to change photo
-            </button>
-          </div>
-
-          {/* User Info */}
-          <div style={styles.userInfo}>
-            <h2 style={styles.userName}>{userName}</h2>
-            <p style={styles.userEmail}>{userEmail}</p>
-          </div>
+      <main className="profile-main">
+        <div className="profile-card">
+          <div className="avatar-circle">{getInitials(userName)}</div>
+          <h2 className="user-name">{userName}</h2>
+          <p className="user-email">{maskEmail(userEmail)}</p>
+          <button className="change-photo-btn">Tap to change photo</button>
         </div>
 
-        {/* Settings Menu */}
-        <div style={styles.settingsCard}>
-          <h3 style={styles.sectionTitle}>⚙️ Settings</h3>
-
-          <div style={styles.menuList}>
-            {/* Notification Settings */}
-            <button 
-              style={styles.menuItem}
-              onClick={() => alert('Notification Settings - Coming soon!')}
-            >
-              <div style={styles.menuLeft}>
-                <span style={styles.menuIcon}>🔔</span>
-                <span style={styles.menuText}>Notification Settings</span>
-              </div>
-              <span style={styles.menuArrow}>→</span>
+        <div className="settings-card">
+          <h3 className="section-title">⚙️ Settings</h3>
+          <div className="menu-list">
+            <button className="menu-item" onClick={() => alert('Notification Settings - Coming soon!')}>
+              <div className="menu-left"><span className="menu-icon">🔔</span><span className="menu-text">Notification Settings</span></div>
+              <span className="menu-arrow">›</span>
             </button>
-
-            {/* Medicine History */}
-            <button 
-              style={styles.menuItem}
-              onClick={() => alert('Medicine History - Coming soon!')}
-            >
-              <div style={styles.menuLeft}>
-                <span style={styles.menuIcon}>📋</span>
-                <span style={styles.menuText}>Medicine History</span>
-              </div>
-              <span style={styles.menuArrow}>→</span>
+            <button className="menu-item" onClick={fetchHistory}>
+              <div className="menu-left"><span className="menu-icon">📋</span><span className="menu-text">Medicine History</span></div>
+              <span className="menu-arrow">›</span>
             </button>
-
-            {/* Account Settings */}
-            <button 
-              style={styles.menuItem}
-              onClick={() => alert('Account Settings - Coming soon!')}
-            >
-              <div style={styles.menuLeft}>
-                <span style={styles.menuIcon}>⚙️</span>
-                <span style={styles.menuText}>Account Settings</span>
-              </div>
-              <span style={styles.menuArrow}>→</span>
+            <button className="menu-item" onClick={() => alert('Account Settings - Coming soon!')}>
+              <div className="menu-left"><span className="menu-icon">⚙️</span><span className="menu-text">Account Settings</span></div>
+              <span className="menu-arrow">›</span>
             </button>
-
-            {/* Export Data */}
-            <button 
-              style={styles.menuItem}
-              onClick={handleExportData}
-            >
-              <div style={styles.menuLeft}>
-                <span style={styles.menuIcon}>📤</span>
-                <span style={styles.menuText}>Export Data</span>
-              </div>
-              <span style={styles.menuArrow}>→</span>
+            <button className="menu-item" onClick={handleExportData}>
+              <div className="menu-left"><span className="menu-icon">📤</span><span className="menu-text">Export Data</span></div>
+              <span className="menu-arrow">›</span>
             </button>
-
-            {/* Logout */}
-            <button 
-              style={{...styles.menuItem, ...styles.logoutItem}}
-              onClick={handleLogout}
-            >
-              <div style={styles.menuLeft}>
-                <span style={styles.menuIcon}>🚪</span>
-                <span style={styles.menuText}>Logout</span>
-              </div>
-              <span style={styles.menuArrow}>→</span>
+            <button className="menu-item logout-item" onClick={() => setShowLogoutModal(true)}>
+              <div className="menu-left"><span className="menu-icon">🚪</span><span className="menu-text logout-text">Logout</span></div>
+              <span className="menu-arrow logout-arrow">›</span>
             </button>
           </div>
         </div>
 
-        {/* App Info */}
-        <div style={styles.appInfo}>
-          <p style={styles.appInfoText}>PillPal v1.0.0</p>
-          <p style={styles.appInfoText}>Your Medication Companion</p>
-        </div>
+        <div className="app-info"><p>PillPal v1.0.0 · Your Medication Companion</p></div>
       </main>
 
-      {/* Bottom Navigation */}
-      <nav style={styles.bottomNav}>
-        <button style={styles.navItem} onClick={() => router.push('/dashboard')}>
-          <span style={styles.navIcon}>🏠</span>
-          <span style={styles.navLabel}>Home</span>
-        </button>
-        <button style={styles.navItem} onClick={() => router.push('/reminders/new')}>
-          <span style={styles.navIcon}>➕</span>
-          <span style={styles.navLabel}>Add</span>
-        </button>
-        <button style={styles.navItem} onClick={() => router.push('/calendar')}>
-          <span style={styles.navIcon}>📅</span>
-          <span style={styles.navLabel}>Calendar</span>
-        </button>
-        <button style={{...styles.navItem, color: '#4CAF50'}} onClick={() => router.push('/profile')}>
-          <span style={styles.navIcon}>👤</span>
-          <span style={styles.navLabel}>Profile</span>
-        </button>
+      <nav className="bottom-nav">
+        <button className="nav-item" onClick={() => router.push('/dashboard')}><span className="nav-icon">🏠</span><span className="nav-label">Home</span></button>
+        <button className="nav-item" onClick={() => router.push('/reminders/new')}><span className="nav-icon">➕</span><span className="nav-label">Add</span></button>
+        <button className="nav-item" onClick={() => router.push('/calendar')}><span className="nav-icon">📅</span><span className="nav-label">Calendar</span></button>
+        <button className="nav-item active"><span className="nav-icon">👤</span><span className="nav-label">Profile</span></button>
       </nav>
     </div>
   );
 }
-
-// Inline Styles
-const styles = {
-  container: {
-    minHeight: '100vh',
-    background: 'linear-gradient(to bottom, #f8f9ff 0%, #e8eaf6 100%)',
-    paddingBottom: '80px'
-  },
-  header: {
-    background: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
-    padding: '20px 24px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '16px',
-    boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)'
-  },
-  backBtn: {
-    background: 'rgba(255, 255, 255, 0.2)',
-    color: 'white',
-    border: 'none',
-    padding: '10px 20px',
-    fontSize: '16px',
-    fontWeight: '600',
-    borderRadius: '8px',
-    cursor: 'pointer'
-  },
-  pageTitle: {
-    color: 'white',
-    fontSize: '24px',
-    fontWeight: '700',
-    margin: 0
-  },
-  main: {
-    maxWidth: '600px',
-    margin: '0 auto',
-    padding: '24px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '24px'
-  },
-  profileCard: {
-    background: 'white',
-    borderRadius: '20px',
-    padding: '32px',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
-    textAlign: 'center'
-  },
-  profilePicture: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '12px',
-    marginBottom: '20px'
-  },
-  pictureCircle: {
-    width: '120px',
-    height: '120px',
-    borderRadius: '50%',
-    background: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '64px',
-    color: 'white',
-    boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)'
-  },
-  changePictureBtn: {
-    background: 'none',
-    border: 'none',
-    color: '#4CAF50',
-    fontSize: '14px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    textDecoration: 'underline'
-  },
-  userInfo: {
-    marginTop: '16px'
-  },
-  userName: {
-    fontSize: '28px',
-    fontWeight: '700',
-    color: '#333',
-    margin: '0 0 8px 0'
-  },
-  userEmail: {
-    fontSize: '16px',
-    color: '#666',
-    margin: 0
-  },
-  settingsCard: {
-    background: 'white',
-    borderRadius: '20px',
-    padding: '24px',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)'
-  },
-  sectionTitle: {
-    fontSize: '20px',
-    fontWeight: '700',
-    color: '#333',
-    margin: '0 0 20px 0'
-  },
-  menuList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px'
-  },
-  menuItem: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '16px',
-    background: '#f9f9f9',
-    border: 'none',
-    borderRadius: '12px',
-    cursor: 'pointer',
-    transition: 'all 0.3s ease',
-    width: '100%',
-    textAlign: 'left'
-  },
-  menuLeft: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px'
-  },
-  menuIcon: {
-    fontSize: '24px'
-  },
-  menuText: {
-    fontSize: '16px',
-    fontWeight: '600',
-    color: '#333'
-  },
-  menuArrow: {
-    fontSize: '20px',
-    color: '#999'
-  },
-  logoutItem: {
-    background: '#ffebee',
-    marginTop: '8px'
-  },
-  appInfo: {
-    textAlign: 'center',
-    padding: '20px'
-  },
-  appInfoText: {
-    fontSize: '14px',
-    color: '#999',
-    margin: '4px 0'
-  },
-  bottomNav: {
-    position: 'fixed',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    background: 'white',
-    display: 'flex',
-    justifyContent: 'space-around',
-    padding: '12px 0',
-    boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.1)',
-    zIndex: 100
-  },
-  navItem: {
-    background: 'none',
-    border: 'none',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '4px',
-    cursor: 'pointer',
-    padding: '8px 16px',
-    color: '#666'
-  },
-  navIcon: {
-    fontSize: '24px'
-  },
-  navLabel: {
-    fontSize: '12px',
-    fontWeight: '600'
-  }
-};

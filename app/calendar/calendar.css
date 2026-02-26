@@ -1,310 +1,637 @@
 /* ===========================
-   SET REMINDER PAGE STYLES
+   CALENDAR PAGE - REDESIGNED
    =========================== */
 
-.reminder-container {
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+
+* { box-sizing: border-box; }
+
+.cal-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #f4f7f4;
+  font-family: 'Nunito', sans-serif;
+  padding-bottom: 80px;
 }
 
 /* ===========================
    HEADER
    =========================== */
-.reminder-header {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  padding: 20px 24px;
+.cal-header {
+  background: linear-gradient(135deg, #43a047 0%, #2e7d32 100%);
+  padding: 18px 24px;
   display: flex;
   align-items: center;
   gap: 16px;
+  box-shadow: 0 4px 16px rgba(46, 125, 50, 0.25);
 }
 
-.back-btn {
-  background: rgba(255, 255, 255, 0.2);
+.cal-back-btn {
+  background: rgba(255,255,255,0.2);
   color: white;
   border: none;
-  padding: 10px 20px;
-  font-size: 16px;
-  font-weight: 600;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.back-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-.page-title {
-  color: white;
-  font-size: 24px;
+  padding: 8px 16px;
+  font-size: 14px;
   font-weight: 700;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: 'Nunito', sans-serif;
+  transition: background 0.2s;
+}
+
+.cal-back-btn:hover { background: rgba(255,255,255,0.3); }
+
+.cal-title {
+  color: white;
+  font-size: 20px;
+  font-weight: 800;
   margin: 0;
 }
 
 /* ===========================
-   MAIN CONTENT
+   MAIN
    =========================== */
-.reminder-main {
-  padding: 40px 24px;
-  max-width: 600px;
+.cal-main {
+  max-width: 700px;
   margin: 0 auto;
-  animation: slideUp 0.5s ease-out;
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 /* ===========================
-   FORM CARD
+   MONTH NAVIGATOR
    =========================== */
-.form-card {
-  background: white;
-  border-radius: 24px;
-  padding: 40px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-}
-
-.form-icon {
-  font-size: 64px;
-  text-align: center;
-  margin-bottom: 16px;
-  animation: bounce 2s infinite;
-}
-
-@keyframes bounce {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-.form-title {
-  font-size: 28px;
-  font-weight: 700;
-  color: #333;
-  text-align: center;
-  margin: 0 0 32px 0;
-}
-
-/* ===========================
-   FORM
-   =========================== */
-.reminder-form {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.form-group label {
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
+.month-nav {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  background: white;
+  border-radius: 14px;
+  padding: 12px 16px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
 }
 
-.label-icon {
+.month-nav-btn {
+  background: #e8f5e9;
+  border: none;
+  color: #2e7d32;
+  font-size: 22px;
+  font-weight: 800;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  font-family: 'Nunito', sans-serif;
+}
+
+.month-nav-btn:hover {
+  background: #43a047;
+  color: white;
+}
+
+.month-title {
   font-size: 20px;
+  font-weight: 800;
+  color: #1b5e20;
+  margin: 0;
 }
 
-.form-group input,
-.form-group select {
-  padding: 16px;
-  font-size: 18px;
-  border: 2px solid #e0e0e0;
+/* ===========================
+   CALENDAR CARD
+   =========================== */
+.calendar-card {
+  background: white;
+  border-radius: 18px;
+  padding: 20px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+  border: 1px solid #e8f5e9;
+}
+
+/* Day Headers */
+.day-headers {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 8px;
+}
+
+.day-header {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 800;
+  color: #888;
+  text-transform: uppercase;
+  padding: 6px 0;
+  letter-spacing: 0.4px;
+}
+
+/* Days Grid */
+.days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.day-cell {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.15s ease;
+  border: 2px solid transparent;
+}
+
+.day-cell.empty {
+  cursor: default;
+  background: transparent;
+}
+
+/* Past days */
+.day-cell.past {
+  background: transparent;
+  color: #ccc;
+}
+.day-cell.past:hover { background: #f5f5f5; }
+
+/* Future/current days */
+.day-cell.future {
+  background: #e8f5e9;
+  color: #1b5e20;
+}
+.day-cell.future:hover {
+  background: #c8e6c9;
+  transform: scale(1.05);
+}
+
+/* Today */
+.day-cell.today {
+  background: #43a047 !important;
+  color: white !important;
+  font-weight: 800;
+  box-shadow: 0 3px 10px rgba(67, 160, 71, 0.4);
+}
+
+/* Selected */
+.day-cell.selected:not(.today) {
+  background: white !important;
+  border-color: #43a047 !important;
+  color: #2e7d32 !important;
+  font-weight: 800;
+  box-shadow: 0 0 0 2px rgba(67, 160, 71, 0.15);
+}
+
+.day-num {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.reminder-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #2e7d32;
+  position: absolute;
+  bottom: 5px;
+}
+
+.day-cell.today .reminder-dot { background: white; }
+
+/* Legend */
+.calendar-legend {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #888;
+  font-weight: 600;
+}
+
+.legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.today-dot    { background: #43a047; }
+.selected-dot { background: white; border: 2px solid #43a047; }
+.med-dot      { background: #c8e6c9; border: 1px solid #43a047; }
+
+/* ===========================
+   PROGRESS CARD
+   =========================== */
+.progress-card {
+  background: white;
+  border-radius: 14px;
+  padding: 16px 20px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.progress-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #333;
+}
+
+.progress-count {
+  font-size: 13px;
+  font-weight: 700;
+  color: #43a047;
+}
+
+.progress-bar-bg {
+  background: #e8f5e9;
+  border-radius: 99px;
+  height: 10px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  background: linear-gradient(90deg, #43a047, #2e7d32);
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.5s ease;
+}
+
+/* ===========================
+   SCHEDULE SECTION
+   =========================== */
+.schedule-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.schedule-heading {
+  font-size: 16px;
+  font-weight: 800;
+  color: #1b5e20;
+  margin: 0;
+}
+
+.schedule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.schedule-item {
+  background: white;
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  border-left: 4px solid #43a047;
+  transition: all 0.2s;
+}
+
+.schedule-item.taken {
+  border-left-color: #bbb;
+  opacity: 0.65;
+}
+
+.schedule-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.pill-icon-wrap {
+  font-size: 26px;
+  width: 44px;
+  height: 44px;
+  background: #e8f5e9;
   border-radius: 12px;
-  transition: all 0.3s ease;
-  outline: none;
-  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.form-group input:focus,
-.form-group select:focus {
-  border-color: #667eea;
-  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+.med-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 
-.form-group input::placeholder {
+.med-name {
+  font-size: 16px;
+  font-weight: 800;
+  color: #1b5e20;
+}
+
+.med-details {
+  font-size: 13px;
+  color: #888;
+  font-weight: 600;
+}
+
+.check-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+}
+
+.check-input {
+  width: 22px;
+  height: 22px;
+  accent-color: #43a047;
+  cursor: pointer;
+}
+
+.check-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #888;
+}
+
+.no-schedule {
+  background: white;
+  border-radius: 14px;
+  padding: 36px 20px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
   color: #aaa;
 }
 
-.form-group select {
-  cursor: pointer;
-  background: white;
-  color: #333; /* FIXED: Make dropdown text black */
-  font-weight: 500; /* FIXED: Make it bolder */
+.no-schedule-icon {
+  font-size: 36px;
+  display: block;
+  margin-bottom: 10px;
 }
 
-.form-group select option {
-  color: #333; /* FIXED: Make dropdown options black */
-  font-weight: 500;
-  background: white;
-}
-
-/* Time input styling */
-.form-group input[type="time"] {
-  cursor: pointer;
-}
-
-/* Number input styling - FIXED VERSION */
-.form-group input[type="number"] {
-  -moz-appearance: textfield;
-  appearance: textfield;
-}
-
-.form-group input[type="number"]::-webkit-outer-spin-button,
-.form-group input[type="number"]::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  appearance: none;
+.no-schedule p {
   margin: 0;
+  font-size: 15px;
+  font-weight: 600;
 }
 
 /* ===========================
-   FORM BUTTONS
+   BOTTOM NAV
    =========================== */
-.form-buttons {
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
   display: flex;
-  gap: 16px;
+  justify-content: space-around;
+  padding: 10px 0 14px;
+  box-shadow: 0 -2px 16px rgba(0,0,0,0.08);
+  z-index: 100;
+}
+
+.nav-item {
+  background: none;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  padding: 6px 16px;
+  color: #aaa;
+  font-family: 'Nunito', sans-serif;
+  transition: color 0.2s;
+}
+
+.nav-item.active,
+.nav-item:hover {
+  color: #43a047;
+}
+
+.nav-icon { font-size: 22px; }
+
+.nav-label {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ===========================
+   RESPONSIVE
+   =========================== */
+@media (max-width: 480px) {
+  .cal-main { padding: 16px 14px; }
+  .day-num  { font-size: 12px; }
+  .month-title { font-size: 17px; }
+  .calendar-card { padding: 14px; }
+  .day-header { font-size: 10px; }
+  .calendar-legend { gap: 12px; }
+}
+
+/* Future date badge */
+.future-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: #43a047;
+  background: #e8f5e9;
+  padding: 5px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+/* ===========================
+   REMINDER CARD ENHANCEMENTS
+   =========================== */
+.reminder-color-bar {
+  width: 5px;
+  border-radius: 4px 0 0 4px;
+  flex-shrink: 0;
+  align-self: stretch;
+}
+
+.freq-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: 20px;
+  margin-top: 5px;
+  text-transform: capitalize;
+}
+
+.freq-badge-small {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  margin-top: 3px;
+  text-transform: capitalize;
+}
+
+/* ===========================
+   CALENDAR STATUS BADGES
+   =========================== */
+.status-badge {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 5px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.taken-badge {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.missed-badge {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.schedule-item.missed {
+  opacity: 0.75;
+  border-left-color: #ef5350 !important;
+}
+
+.schedule-item {
+  border-left: 4px solid #43a047;
+}
+
+/* ===========================
+   MINI CALENDAR
+   =========================== */
+.mini-cal {
+  background: #f8fdf8;
+  border: 2px solid #e8f5e9;
+  border-radius: 16px;
+  padding: 16px;
   margin-top: 8px;
 }
 
-.cancel-btn,
-.save-btn {
-  flex: 1;
-  padding: 16px;
-  font-size: 18px;
-  font-weight: 700;
-  border: none;
-  border-radius: 12px;
+.mini-cal-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.mini-cal-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #1b5e20;
+}
+
+.mini-cal-arrow {
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  width: 30px;
+  height: 30px;
+  font-size: 16px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 800;
+  color: #2e7d32;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.mini-cal-arrow:hover { background: #e8f5e9; }
+
+.mini-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
 }
 
-.cancel-btn {
-  background: #f5f5f5;
-  color: #666;
+.mini-cal-header {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: #888;
+  padding: 4px 0;
 }
 
-.cancel-btn:hover {
-  background: #e0e0e0;
+.mini-cal-cell {
+  text-align: center;
+  padding: 7px 2px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #333;
+  transition: all 0.15s ease;
 }
 
-.save-btn {
-  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+.mini-cal-cell:hover:not(.past):not(.empty) {
+  background: #c8e6c9;
+  color: #1b5e20;
+}
+
+.mini-cal-cell.past {
+  color: #ccc;
+  cursor: default;
+}
+
+.mini-cal-cell.empty {
+  cursor: default;
+}
+
+.mini-cal-cell.selected {
+  background: #43a047;
   color: white;
+  border-radius: 8px;
 }
 
-.save-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(76, 175, 80, 0.4);
+.mini-cal-selected {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #e8f5e9;
 }
 
-.save-btn:active,
-.cancel-btn:active {
-  transform: translateY(0);
+.mini-cal-count {
+  font-size: 13px;
+  font-weight: 800;
+  color: #2e7d32;
 }
 
-/* ===========================
-   ANIMATIONS
-   =========================== */
-.form-group {
-  animation: fadeInUp 0.6s ease-out backwards;
+.mini-cal-clear {
+  font-size: 12px;
+  font-weight: 700;
+  color: #ef5350;
+  background: #ffebee;
+  border: none;
+  padding: 5px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-family: 'Nunito', sans-serif;
 }
-
-.form-group:nth-child(1) { animation-delay: 0.1s; }
-.form-group:nth-child(2) { animation-delay: 0.2s; }
-.form-group:nth-child(3) { animation-delay: 0.3s; }
-.form-group:nth-child(4) { animation-delay: 0.4s; }
-.form-group:nth-child(5) { animation-delay: 0.5s; }
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* ===========================
-   RESPONSIVE DESIGN
-   =========================== */
-@media (max-width: 768px) {
-  .reminder-header {
-    padding: 16px 20px;
-  }
-
-  .page-title {
-    font-size: 20px;
-  }
-
-  .reminder-main {
-    padding: 24px 16px;
-  }
-
-  .form-card {
-    padding: 32px 24px;
-  }
-
-  .form-title {
-    font-size: 24px;
-  }
-
-  .form-icon {
-    font-size: 48px;
-  }
-
-  .form-group input,
-  .form-group select {
-    font-size: 16px;
-    padding: 14px;
-  }
-
-  .form-buttons {
-    flex-direction: column;
-  }
-
-  .cancel-btn,
-  .save-btn {
-    font-size: 16px;
-  }
-}
-
-@media (max-width: 480px) {
-  .back-btn {
-    padding: 8px 16px;
-    font-size: 14px;
-  }
-
-  .page-title {
-    font-size: 18px;
-  }
-
-  .form-card {
-    padding: 24px 20px;
-  }
-
-  .form-title {
-    font-size: 20px;
-  }
-}
+.mini-cal-clear:hover { background: #ffcdd2; }

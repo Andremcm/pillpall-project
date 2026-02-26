@@ -1,14 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
-import { NextResponse } from 'next/server';
-
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: process.env.DATABASE_URL,
-    },
-  },
-});
 
 export async function POST(req) {
   try {
@@ -16,23 +7,17 @@ export async function POST(req) {
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
-      return NextResponse.json({ error: 'Email already in use' }, { status: 400 });
+      return Response.json({ error: 'An account with this email already exists.' }, { status: 400 });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
+    const hashed = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
-      data: {
-        name: fullName,
-        email,
-        password: hashedPassword,
-        role: 'user'
-      }
+      data: { name: fullName, email, password: hashed }
     });
 
-    return NextResponse.json({ message: 'Account created!', userId: user.id }, { status: 201 });
+    return Response.json({ id: user.id, name: user.name, email: user.email }, { status: 201 });
   } catch (err) {
-    console.error('SIGNUP ERROR:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error(err);
+    return Response.json({ error: 'Server error.' }, { status: 500 });
   }
 }

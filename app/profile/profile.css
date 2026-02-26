@@ -1,0 +1,408 @@
+/* ===========================
+   PROFILE PAGE
+   =========================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+
+* { box-sizing: border-box; }
+
+.profile-container {
+  min-height: 100vh;
+  background: #f4f7f4;
+  font-family: 'Nunito', sans-serif;
+  padding-bottom: 80px;
+}
+
+/* ===========================
+   HEADER
+   =========================== */
+.profile-header {
+  background: linear-gradient(135deg, #43a047 0%, #2e7d32 100%);
+  padding: 18px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 4px 16px rgba(46, 125, 50, 0.25);
+}
+
+.back-btn {
+  background: rgba(255,255,255,0.2);
+  color: white; border: none;
+  padding: 9px 18px; font-size: 14px; font-weight: 700;
+  border-radius: 10px; cursor: pointer;
+  font-family: 'Nunito', sans-serif; transition: background 0.2s;
+}
+.back-btn:hover { background: rgba(255,255,255,0.3); }
+
+.page-title {
+  color: white; font-size: 20px; font-weight: 800; margin: 0;
+}
+
+/* ===========================
+   MAIN
+   =========================== */
+.profile-main {
+  max-width: 580px;
+  margin: 0 auto;
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ===========================
+   PROFILE CARD
+   =========================== */
+.profile-card {
+  background: white;
+  border-radius: 20px;
+  padding: 32px 24px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.avatar-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #43a047, #2e7d32);
+  color: white;
+  font-size: 28px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(46,125,50,0.35);
+  margin-bottom: 4px;
+}
+
+.user-name {
+  font-size: 22px;
+  font-weight: 800;
+  color: #1b5e20;
+  margin: 0;
+}
+
+.user-email {
+  font-size: 14px;
+  color: #888;
+  font-weight: 600;
+  margin: 0;
+  font-family: monospace;
+  letter-spacing: 0.3px;
+}
+
+.change-photo-btn {
+  background: none;
+  border: none;
+  color: #43a047;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+  font-family: 'Nunito', sans-serif;
+  margin-top: 4px;
+}
+
+/* ===========================
+   SETTINGS CARD
+   =========================== */
+.settings-card {
+  background: white;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: #1b5e20;
+  margin: 0 0 14px 0;
+}
+
+.menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  background: #f9faf9;
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: all 0.2s;
+  font-family: 'Nunito', sans-serif;
+}
+.menu-item:hover {
+  background: #e8f5e9;
+  border-color: #c8e6c9;
+  transform: translateX(2px);
+}
+
+.menu-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.menu-icon { font-size: 20px; }
+
+.menu-text {
+  font-size: 15px;
+  font-weight: 700;
+  color: #333;
+}
+
+.menu-arrow {
+  font-size: 20px;
+  color: #bbb;
+  font-weight: 700;
+}
+
+.logout-item {
+  background: #fff5f5;
+  border-color: #ffdddd;
+  margin-top: 4px;
+}
+.logout-item:hover { background: #ffebeb; border-color: #ffcccc; }
+.logout-text  { color: #c62828; }
+.logout-arrow { color: #c62828; }
+
+/* ===========================
+   APP INFO
+   =========================== */
+.app-info {
+  text-align: center;
+  padding: 8px;
+  font-size: 12px;
+  color: #bbb;
+  font-weight: 600;
+}
+.app-info p { margin: 0; }
+
+/* ===========================
+   MODAL
+   =========================== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.modal-card {
+  background: white;
+  border-radius: 20px;
+  padding: 36px 28px;
+  max-width: 320px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.18);
+  animation: popIn 0.25s ease;
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.modal-icon { font-size: 44px; margin-bottom: 12px; }
+.modal-title { font-size: 20px; font-weight: 800; color: #1b5e20; margin: 0 0 10px 0; }
+.modal-text  { font-size: 14px; color: #666; margin: 0 0 24px 0; line-height: 1.5; }
+
+.modal-buttons { display: flex; gap: 12px; }
+
+.modal-cancel {
+  flex: 1; padding: 13px;
+  background: #f0f0f0; border: 2px solid #e0e0e0;
+  border-radius: 12px; font-size: 15px; font-weight: 700;
+  color: #555; cursor: pointer; font-family: 'Nunito', sans-serif;
+  transition: background 0.2s;
+}
+.modal-cancel:hover { background: #e5e5e5; }
+
+.modal-confirm {
+  flex: 1; padding: 13px; border: none;
+  border-radius: 12px; font-size: 15px; font-weight: 700;
+  color: white; cursor: pointer; font-family: 'Nunito', sans-serif;
+  transition: all 0.2s;
+}
+
+.modal-danger {
+  background: linear-gradient(135deg, #e53935, #b71c1c);
+  box-shadow: 0 4px 12px rgba(229,57,53,0.35);
+}
+.modal-danger:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(229,57,53,0.4); }
+
+/* ===========================
+   BOTTOM NAV
+   =========================== */
+.bottom-nav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: white;
+  display: flex;
+  justify-content: space-around;
+  padding: 10px 0 14px;
+  box-shadow: 0 -2px 16px rgba(0,0,0,0.08);
+  z-index: 100;
+}
+
+.nav-item {
+  background: none; border: none;
+  display: flex; flex-direction: column;
+  align-items: center; gap: 3px;
+  cursor: pointer; padding: 6px 16px;
+  color: #aaa; font-family: 'Nunito', sans-serif;
+  transition: color 0.2s;
+}
+.nav-item.active,
+.nav-item:hover { color: #43a047; }
+
+.nav-icon  { font-size: 22px; }
+.nav-label { font-size: 11px; font-weight: 700; }
+
+/* ===========================
+   RESPONSIVE
+   =========================== */
+@media (max-width: 480px) {
+  .profile-main { padding: 16px 14px; }
+  .profile-card { padding: 24px 16px; }
+  .user-name { font-size: 18px; }
+}
+
+/* ===========================
+   MEDICINE HISTORY MODAL
+   =========================== */
+.history-modal {
+  background: white;
+  border-radius: 20px;
+  width: 92%;
+  max-width: 480px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.2);
+  animation: popIn 0.25s ease;
+  overflow: hidden;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #f0f0f0;
+  flex-shrink: 0;
+}
+
+.history-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #1b5e20;
+  margin: 0;
+}
+
+.history-close {
+  background: #f0f0f0;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 14px;
+  cursor: pointer;
+  font-weight: 700;
+  color: #555;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Nunito', sans-serif;
+}
+.history-close:hover { background: #e0e0e0; }
+
+.history-body {
+  overflow-y: auto;
+  flex: 1;
+  padding: 16px;
+}
+
+.history-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: #aaa;
+  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.history-sub { font-size: 13px; color: #ccc; }
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.history-item {
+  background: #fafafa;
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-left: 4px solid #ccc;
+}
+.history-item.taken  { border-left-color: #43a047; }
+.history-item.skipped { border-left-color: #ef5350; }
+
+.history-item-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1;
+}
+
+.history-pill-icon {
+  font-size: 20px;
+  width: 38px;
+  height: 38px;
+  background: #e8f5e9;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.history-med-name   { font-size: 15px; font-weight: 800; color: #1b5e20; }
+.history-med-details { font-size: 12px; color: #888; font-weight: 600; margin-top: 2px; }
+.history-date       { font-size: 12px; color: #555; font-weight: 700; margin-top: 4px; }
+.history-time       { font-size: 12px; color: #aaa; font-weight: 600; }
+
+.history-badge {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 5px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.history-badge.taken   { background: #e8f5e9; color: #2e7d32; }
+.history-badge.skipped { background: #ffebee; color: #c62828; }
