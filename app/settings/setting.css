@@ -1,0 +1,332 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+
+.settings-container {
+  min-height: 100vh;
+  background: #f4f7f4;
+  font-family: 'Nunito', sans-serif;
+  padding-bottom: 40px;
+}
+
+.settings-header {
+  background: linear-gradient(135deg, #43a047, #2e7d32);
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 2px 12px rgba(46,125,50,0.3);
+}
+
+.settings-back-btn {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  color: white;
+  font-size: 14px;
+  font-weight: 800;
+  padding: 8px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-family: 'Nunito', sans-serif;
+  white-space: nowrap;
+}
+.settings-back-btn:hover { background: rgba(255,255,255,0.3); }
+
+.settings-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: white;
+  margin: 0;
+}
+
+.settings-toast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #2e7d32;
+  color: white;
+  padding: 12px 28px;
+  border-radius: 30px;
+  font-size: 14px;
+  font-weight: 700;
+  z-index: 999;
+  box-shadow: 0 4px 16px rgba(46,125,50,0.35);
+  white-space: nowrap;
+  font-family: 'Nunito', sans-serif;
+  animation: fadeInDown 0.3s ease;
+}
+
+@keyframes fadeInDown {
+  from { opacity:0; transform: translateX(-50%) translateY(-10px); }
+  to   { opacity:1; transform: translateX(-50%) translateY(0); }
+}
+
+.settings-main {
+  padding: 24px 20px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Settings list */
+.settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-item {
+  background: white;
+  border: none;
+  border-radius: 16px;
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  transition: transform 0.15s, box-shadow 0.15s;
+  font-family: 'Nunito', sans-serif;
+}
+.settings-item:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+
+.settings-item-icon {
+  font-size: 28px;
+  width: 48px;
+  height: 48px;
+  background: #e8f5e9;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.settings-item-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.settings-item-title { font-size: 16px; font-weight: 800; color: #1b5e20; }
+.settings-item-desc  { font-size: 13px; color: #888; font-weight: 600; }
+.settings-item-arrow { font-size: 22px; color: #ccc; font-weight: 700; }
+
+/* Section content */
+.settings-section-content { animation: fadeInUp 0.3s ease; }
+
+@keyframes fadeInUp {
+  from { opacity:0; transform: translateY(16px); }
+  to   { opacity:1; transform: translateY(0); }
+}
+
+.section-back {
+  background: none;
+  border: none;
+  color: #43a047;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  padding: 0 0 16px;
+  font-family: 'Nunito', sans-serif;
+  display: block;
+}
+.section-back:hover { text-decoration: underline; }
+
+.section-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #1b5e20;
+  margin: 0 0 20px;
+}
+
+.section-hint {
+  font-size: 13px;
+  color: #888;
+  font-weight: 600;
+  margin: -10px 0 20px;
+}
+
+/* Settings form */
+.settings-form { display: flex; flex-direction: column; gap: 16px; }
+
+.settings-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.settings-form-group label {
+  font-size: 12px;
+  font-weight: 800;
+  color: #2e7d32;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.settings-form-group input {
+  padding: 13px 16px;
+  border: 2px solid #e8f5e9;
+  border-radius: 12px;
+  font-size: 15px;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
+  color: #222;
+  background: white;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  width: 100%;
+  box-sizing: border-box;
+}
+.settings-form-group input:focus {
+  border-color: #43a047;
+  box-shadow: 0 0 0 3px rgba(67,160,71,0.12);
+}
+
+.settings-pw-wrap { position: relative; display: flex; align-items: center; }
+.settings-pw-wrap input { padding-right: 48px; width: 100%; }
+
+.settings-eye {
+  position: absolute;
+  right: 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #aaa;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: color 0.2s;
+}
+.settings-eye:hover { color: #43a047; }
+
+.settings-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0;
+}
+.settings-divider span {
+  font-size: 12px;
+  font-weight: 800;
+  color: #bbb;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+.settings-divider::before,
+.settings-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e0e0e0;
+}
+
+.settings-save-btn {
+  padding: 14px;
+  background: linear-gradient(135deg, #43a047, #2e7d32);
+  border: none;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 800;
+  color: white;
+  cursor: pointer;
+  font-family: 'Nunito', sans-serif;
+  box-shadow: 0 4px 14px rgba(46,125,50,0.3);
+  margin-top: 8px;
+  transition: opacity 0.15s, transform 0.15s;
+}
+.settings-save-btn:hover    { opacity: 0.92; transform: translateY(-1px); }
+.settings-save-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+/* Font size options */
+.font-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.font-option {
+  background: white;
+  border: 2px solid #e8f5e9;
+  border-radius: 14px;
+  padding: 16px;
+  cursor: pointer;
+  font-family: 'Nunito', sans-serif;
+  text-align: center;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+}
+.font-option:hover { border-color: #43a047; background: #f8fdf8; }
+.font-option.active { border-color: #43a047; background: #e8f5e9; }
+
+.font-option-preview { font-weight: 800; color: #1b5e20; line-height: 1; }
+.font-option-label   { font-size: 14px; font-weight: 800; color: #333; }
+.font-option-desc    { font-size: 11px; color: #888; font-weight: 600; }
+
+.font-option-check {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  color: #43a047;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.font-preview-box {
+  background: white;
+  border: 2px solid #e8f5e9;
+  border-radius: 14px;
+  padding: 20px;
+  text-align: center;
+}
+
+/* Toggle switches */
+.toggle-list { display: flex; flex-direction: column; gap: 2px; margin-bottom: 20px; }
+
+.toggle-item {
+  background: white;
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+}
+
+.toggle-info { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.toggle-label { font-size: 15px; font-weight: 800; color: #1b5e20; }
+.toggle-desc  { font-size: 12px; color: #888; font-weight: 600; }
+
+.toggle-switch {
+  width: 50px;
+  height: 28px;
+  border-radius: 14px;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.25s ease;
+  flex-shrink: 0;
+  padding: 0;
+}
+.toggle-switch.on  { background: #43a047; }
+.toggle-switch.off { background: #ddd; }
+
+.toggle-thumb {
+  position: absolute;
+  top: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  transition: left 0.25s ease;
+}
+.toggle-switch.on  .toggle-thumb { left: 25px; }
+.toggle-switch.off .toggle-thumb { left: 3px; }

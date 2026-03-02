@@ -24,6 +24,7 @@ model Medication {
   frequency   String
   color       String     @default("#43a047")
   startDate   DateTime   @default(now())
+  endDate     String?    
   dayOfWeek   Int?
   customDates String?
   reminders   Reminder[]

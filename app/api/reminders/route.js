@@ -31,6 +31,7 @@ export async function GET(req) {
           frequency: med.frequency,
           color: med.color || '#43a047',
           startDate: med.startDate,
+          endDate: med.endDate || null,       // ✅ include endDate
           dayOfWeek: med.dayOfWeek,
           customDates: med.customDates ? JSON.parse(med.customDates) : [],
           time: formatTime(rem.reminderTime),
@@ -49,6 +50,7 @@ export async function GET(req) {
             frequency: med.frequency,
             color: med.color || '#43a047',
             startDate: med.startDate,
+            endDate: med.endDate || null,     // ✅ include endDate
             dayOfWeek: med.dayOfWeek,
             customDates: med.customDates ? JSON.parse(med.customDates) : [],
             time: formatTime(rem.secondTime),
@@ -72,7 +74,7 @@ export async function GET(req) {
 // POST /api/reminders
 export async function POST(req) {
   try {
-    const { userId, medicine, dosage, frequency, time, secondTime, customDates, color } = await req.json();
+    const { userId, medicine, dosage, frequency, time, secondTime, customDates, color, endDate } = await req.json();
     if (!userId || !medicine || !dosage || !time) {
       return Response.json({ error: 'Missing required fields' }, { status: 400 });
     }
@@ -83,6 +85,9 @@ export async function POST(req) {
     const dayOfWeek = frequency === 'weekly' ? startDate.getDay() : null;
     const customDatesJson = frequency === 'custom' && customDates?.length ? JSON.stringify(customDates) : null;
 
+    // ✅ only store endDate for daily/twice-daily
+    const endDateVal = ['daily','twice-daily'].includes(frequency) && endDate ? endDate : null;
+
     const medication = await prisma.medication.create({
       data: {
         userId,
@@ -91,6 +96,7 @@ export async function POST(req) {
         frequency,
         color: color || generateColor(medicine),
         startDate,
+        endDate: endDateVal,
         dayOfWeek,
         customDates: customDatesJson,
         reminders: {
@@ -109,6 +115,7 @@ export async function POST(req) {
       frequency: medication.frequency,
       color: medication.color,
       startDate: medication.startDate,
+      endDate: medication.endDate || null,
       dayOfWeek: medication.dayOfWeek,
       customDates: medication.customDates ? JSON.parse(medication.customDates) : [],
       time: formatTime(rem.reminderTime),

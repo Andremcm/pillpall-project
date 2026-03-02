@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import './reminder.css';
 
@@ -22,6 +22,195 @@ function generateColor(name) {
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
   return MED_COLORS[Math.abs(hash) % MED_COLORS.length];
+}
+
+// ── Tap List Time Picker ─────────────────────────────────────────────
+function TapTimePicker({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [hour, setHour]     = useState('08');
+  const [minute, setMinute] = useState('00');
+  const [ampm, setAmpm]     = useState('AM');
+  const wrapRef = useRef(null);
+
+  const HOURS   = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
+  const MINUTES = ['00','05','10','15','20','25','30','35','40','45','50','55'];
+  const AMPMS   = ['AM', 'PM'];
+
+  useEffect(() => {
+    if (value) {
+      const [h, m] = value.split(':').map(Number);
+      const ap = h >= 12 ? 'PM' : 'AM';
+      const h12 = h % 12 === 0 ? 12 : h % 12;
+      setHour(String(h12).padStart(2, '0'));
+      setMinute(String(m).padStart(2, '0'));
+      setAmpm(ap);
+    }
+  }, [value]);
+
+  useEffect(() => {
+    const handler = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const commit = (h, m, ap) => {
+    let h24 = parseInt(h);
+    if (ap === 'AM' && h24 === 12) h24 = 0;
+    if (ap === 'PM' && h24 !== 12) h24 += 12;
+    const closest = MINUTES.reduce((a, b) => Math.abs(parseInt(b) - parseInt(m)) < Math.abs(parseInt(a) - parseInt(m)) ? b : a);
+    onChange(`${String(h24).padStart(2, '0')}:${closest}`);
+  };
+
+  const pick = (type, val) => {
+    if (type === 'h') { setHour(val);   commit(val, minute, ampm); }
+    if (type === 'm') { setMinute(val); commit(hour, val, ampm); }
+    if (type === 'a') { setAmpm(val);   commit(hour, minute, val); }
+  };
+
+  const displayTime = value
+    ? (() => {
+        const [h, m] = value.split(':').map(Number);
+        const ap = h >= 12 ? 'PM' : 'AM';
+        const h12 = h % 12 === 0 ? 12 : h % 12;
+        return `${h12}:${String(m).padStart(2, '0')} ${ap}`;
+      })()
+    : 'Select time';
+
+  return (
+    <div className="ttp-wrap" ref={wrapRef}>
+      <button type="button" className={`ttp-trigger${value ? ' has-value' : ''}${open ? ' open' : ''}`}
+        onClick={() => setOpen(o => !o)}>
+        <span className="ttp-icon">🕐</span>
+        <span className="ttp-display">{displayTime}</span>
+        <span className="ttp-chevron">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="ttp-panel">
+          <div className="ttp-panel-header">PICK A TIME</div>
+          <div className="ttp-columns">
+            <div className="ttp-col">
+              <div className="ttp-col-label">HR</div>
+              <div className="ttp-list">
+                {HOURS.map(h => (
+                  <button key={h} type="button" className={`ttp-item${h === hour ? ' active' : ''}`}
+                    onClick={() => pick('h', h)}>{h}</button>
+                ))}
+              </div>
+            </div>
+            <div className="ttp-divider">:</div>
+            <div className="ttp-col">
+              <div className="ttp-col-label">MIN</div>
+              <div className="ttp-list">
+                {MINUTES.map(m => (
+                  <button key={m} type="button" className={`ttp-item${m === minute ? ' active' : ''}`}
+                    onClick={() => pick('m', m)}>{m}</button>
+                ))}
+              </div>
+            </div>
+            <div className="ttp-col ttp-col-ampm">
+              <div className="ttp-col-label"></div>
+              <div className="ttp-ampm-group">
+                {AMPMS.map(a => (
+                  <button key={a} type="button" className={`ttp-ampm-btn${a === ampm ? ' active' : ''}`}
+                    onClick={() => pick('a', a)}>{a}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <button type="button" className="ttp-done" onClick={() => setOpen(false)}>Done</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Custom End Date Picker ───────────────────────────────────────────
+function EndDatePicker({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [viewDate, setViewDate] = useState(() => {
+    if (value) return new Date(value + 'T00:00:00');
+    return new Date();
+  });
+  const wrapRef = useRef(null);
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const year  = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDay    = new Date(year, month, 1).getDay();
+
+  useEffect(() => {
+    const handler = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const selectDay = (day) => {
+    const dt = new Date(year, month, day); dt.setHours(0,0,0,0);
+    if (dt < today) return;
+    const str = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    onChange(str);
+    setOpen(false);
+  };
+
+  const cells = [];
+  for (let i = 0; i < firstDay; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  const displayValue = value
+    ? new Date(value + 'T00:00:00').toLocaleDateString('default', { month:'long', day:'numeric', year:'numeric' })
+    : 'Select end date';
+
+  const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  return (
+    <div className="edp-wrap" ref={wrapRef}>
+      <button type="button" className={`edp-trigger${value ? ' has-value' : ''}${open ? ' open' : ''}`}
+        onClick={() => setOpen(o => !o)}>
+        <span className="edp-icon">📅</span>
+        <span className="edp-display">{displayValue}</span>
+        <span className="edp-chevron">{open ? '▲' : '▼'}</span>
+      </button>
+
+      {open && (
+        <div className="edp-panel">
+          <div className="edp-nav">
+            <button type="button" className="edp-nav-btn"
+              onClick={() => setViewDate(new Date(year, month - 1))}>‹</button>
+            <span className="edp-nav-title">{MONTH_NAMES[month]} {year}</span>
+            <button type="button" className="edp-nav-btn"
+              onClick={() => setViewDate(new Date(year, month + 1))}>›</button>
+          </div>
+          <div className="edp-grid">
+            {['S','M','T','W','T','F','S'].map((d,i) => (
+              <div key={i} className="edp-day-header">{d}</div>
+            ))}
+            {cells.map((day, i) => {
+              if (!day) return <div key={i} />;
+              const dt = new Date(year, month, day); dt.setHours(0,0,0,0);
+              const isPast = dt < today;
+              const str = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+              const isSelected = value === str;
+              const isToday = dt.getTime() === today.getTime();
+              return (
+                <button key={i} type="button"
+                  className={`edp-day${isPast ? ' past' : ''}${isSelected ? ' selected' : ''}${isToday ? ' today' : ''}`}
+                  onClick={() => selectDay(day)}
+                  disabled={isPast}>
+                  {day}
+                </button>
+              );
+            })}
+          </div>
+          {value && (
+            <button type="button" className="edp-clear" onClick={() => { onChange(''); setOpen(false); }}>
+              Clear end date
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function MiniCalendar({ selectedDates, onChange }) {
@@ -81,7 +270,11 @@ export default function SetReminderPage() {
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [formData, setFormData] = useState({ medicineName:'', dosage:'', frequency:'daily', time:'', secondTime:'', customDates:[], color:'' });
+  const [formData, setFormData] = useState({
+    medicineName:'', dosage:'', frequency:'daily',
+    time:'', secondTime:'', customDates:[], color:'', endDate:''
+  });
+  const [showUntil, setShowUntil] = useState(false);
 
   useEffect(() => { fetchReminders(); }, []);
 
@@ -103,16 +296,19 @@ export default function SetReminderPage() {
   };
 
   const resetForm = () => {
-    setFormData({ medicineName:'', dosage:'', frequency:'daily', time:'', secondTime:'', customDates:[], color:'' });
+    setFormData({ medicineName:'', dosage:'', frequency:'daily', time:'', secondTime:'', customDates:[], color:'', endDate:'' });
     setEditingReminder(null);
+    setShowUntil(false);
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev, [name]: value,
-      ...(name === 'medicineName' && !editingReminder ? { color: generateColor(value) } : {})
+      ...(name === 'medicineName' && !editingReminder ? { color: generateColor(value) } : {}),
+      ...(name === 'frequency' && !['daily','twice-daily'].includes(value) ? { endDate: '' } : {})
     }));
+    if (name === 'frequency' && !['daily','twice-daily'].includes(value)) setShowUntil(false);
   };
 
   const handleSubmit = async (e) => {
@@ -124,14 +320,14 @@ export default function SetReminderPage() {
       if (editingReminder) {
         const res = await fetch(`/api/reminders/${editingReminder.id}`, {
           method: 'PUT', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ medicine: formData.medicineName, dosage: formData.dosage, frequency: formData.frequency, time: formData.time, secondTime: formData.secondTime || null, customDates: formData.customDates })
+          body: JSON.stringify({ medicine: formData.medicineName, dosage: formData.dosage, frequency: formData.frequency, time: formData.time, secondTime: formData.secondTime || null, customDates: formData.customDates, endDate: formData.endDate || null })
         });
         res.ok ? (showToast('Reminder updated!'), await fetchReminders()) : showToast('Error updating.');
       } else {
         const userId = localStorage.getItem('userId');
         const res = await fetch('/api/reminders', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: parseInt(userId), medicine: formData.medicineName, dosage: formData.dosage, frequency: formData.frequency, time: formData.time, secondTime: formData.secondTime || null, customDates: formData.customDates, color: formData.color || generateColor(formData.medicineName) })
+          body: JSON.stringify({ userId: parseInt(userId), medicine: formData.medicineName, dosage: formData.dosage, frequency: formData.frequency, time: formData.time, secondTime: formData.secondTime || null, customDates: formData.customDates, color: formData.color || generateColor(formData.medicineName), endDate: formData.endDate || null })
         });
         res.ok ? (showToast('Reminder saved!'), await fetchReminders()) : showToast('Error saving.');
       }
@@ -149,7 +345,9 @@ export default function SetReminderPage() {
       if (ampm === 'AM' && h === 12) h = 0;
       return `${String(h).padStart(2,'0')}:${m}`;
     };
-    setFormData({ medicineName: reminder.medicine, dosage: reminder.dosage, frequency: reminder.frequency || 'daily', time: toTimeInput(reminder.time), secondTime: toTimeInput(reminder.secondTime || ''), customDates: reminder.customDates || [], color: reminder.color || generateColor(reminder.medicine) });
+    const hasEnd = !!reminder.endDate;
+    setFormData({ medicineName: reminder.medicine, dosage: reminder.dosage, frequency: reminder.frequency || 'daily', time: toTimeInput(reminder.time), secondTime: toTimeInput(reminder.secondTime || ''), customDates: reminder.customDates || [], color: reminder.color || generateColor(reminder.medicine), endDate: reminder.endDate || '' });
+    setShowUntil(hasEnd);
     setEditingReminder(reminder);
     setShowForm(true);
   };
@@ -163,8 +361,8 @@ export default function SetReminderPage() {
   };
 
   const showToast = (msg) => { setSuccessMsg(msg); setTimeout(() => setSuccessMsg(''), 3000); };
-  const fmt = (t) => { if (!t) return ''; const [h,m] = t.split(':'); const hr = parseInt(h); return `${hr%12||12}:${m} ${hr>=12?'PM':'AM'}`; };
   const getDayName = () => ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date().getDay()];
+  const showsUntil = ['daily','twice-daily'].includes(formData.frequency);
 
   return (
     <div className="reminder-container">
@@ -220,6 +418,7 @@ export default function SetReminderPage() {
                             {FREQ_LABELS[r.frequency] || r.frequency}
                             {r.frequency === 'weekly' && ` · ${getDayName()}s`}
                             {r.frequency === 'custom' && r.customDates?.length > 0 && ` · ${r.customDates.length} dates`}
+                            {r.endDate && ` · until ${new Date(r.endDate + 'T00:00:00').toLocaleDateString('default',{month:'short',day:'numeric'})}`}
                           </span>
                         </div>
                       </div>
@@ -245,7 +444,9 @@ export default function SetReminderPage() {
                   <input type="text" id="medicineName" name="medicineName" placeholder="Enter medicine name"
                     value={formData.medicineName} onChange={handleChange} required style={{ flex:1 }} />
                   {formData.medicineName && (
-                    <div style={{ width:'34px', height:'34px', borderRadius:'50%', flexShrink:0, background: formData.color || generateColor(formData.medicineName), border:'3px solid white', boxShadow:'0 2px 8px rgba(0,0,0,0.15)' }} />
+                    <div style={{ width:'34px', height:'34px', borderRadius:'50%', flexShrink:0,
+                      background: formData.color || generateColor(formData.medicineName),
+                      border:'3px solid white', boxShadow:'0 2px 8px rgba(0,0,0,0.15)' }} />
                   )}
                 </div>
               </div>
@@ -266,27 +467,47 @@ export default function SetReminderPage() {
                 </select>
               </div>
 
-              {formData.frequency === 'daily' && <p className="field-hint">📅 Appears every day starting today.</p>}
-              {formData.frequency === 'weekly' && <p className="field-hint">📅 Repeats every <strong>{getDayName()}</strong>.</p>}
+              {formData.frequency === 'daily'       && <p className="field-hint">📅 Appears every day starting today.</p>}
+              {formData.frequency === 'weekly'      && <p className="field-hint">📅 Repeats every <strong>{getDayName()}</strong>.</p>}
               {formData.frequency === 'twice-daily' && <p className="field-hint">📅 Two reminders per day — set both times below.</p>}
+
+              {/* ── Until toggle ── */}
+              {showsUntil && (
+                <div className="until-row">
+                  <button type="button"
+                    className={`until-toggle-btn${showUntil ? ' active' : ''}`}
+                    onClick={() => { setShowUntil(v => !v); if (showUntil) setFormData(p => ({ ...p, endDate: '' })); }}>
+                    <span className="until-icon">📅</span>
+                    {showUntil ? 'Remove end date' : 'Set end date (optional)'}
+                  </button>
+                  {showUntil && (
+                    <div className="until-date-wrap">
+                      <label className="until-label">Remind me until</label>
+                      <EndDatePicker
+                        value={formData.endDate}
+                        onChange={(val) => setFormData(p => ({ ...p, endDate: val }))}
+                      />
+                      {formData.endDate && (
+                        <span className="until-display">
+                          Until {new Date(formData.endDate + 'T00:00:00').toLocaleDateString('default', { weekday:'short', month:'long', day:'numeric' })}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {formData.frequency !== 'custom' && (
                 <div className="form-group">
-                  <label htmlFor="time"><span className="label-icon">🕐</span> {formData.frequency === 'twice-daily' ? 'First Time *' : 'Time *'}</label>
-                  <div className="time-picker-wrapper">
-                    <input type="time" id="time" name="time" value={formData.time} onChange={handleChange} required className="time-input" />
-                    {formData.time && <span className="time-display">{fmt(formData.time)}</span>}
-                  </div>
+                  <label><span className="label-icon">🕐</span> {formData.frequency === 'twice-daily' ? 'First Time *' : 'Time *'}</label>
+                  <TapTimePicker value={formData.time} onChange={(val) => setFormData(p => ({ ...p, time: val }))} />
                 </div>
               )}
 
               {formData.frequency === 'twice-daily' && (
                 <div className="form-group">
-                  <label htmlFor="secondTime"><span className="label-icon">🕐</span> Second Time *</label>
-                  <div className="time-picker-wrapper">
-                    <input type="time" id="secondTime" name="secondTime" value={formData.secondTime} onChange={handleChange} required className="time-input" />
-                    {formData.secondTime && <span className="time-display">{fmt(formData.secondTime)}</span>}
-                  </div>
+                  <label><span className="label-icon">🕐</span> Second Time *</label>
+                  <TapTimePicker value={formData.secondTime} onChange={(val) => setFormData(p => ({ ...p, secondTime: val }))} />
                 </div>
               )}
 
@@ -299,10 +520,7 @@ export default function SetReminderPage() {
                   {formData.customDates.length > 0 && (
                     <div className="form-group" style={{ marginTop:'14px' }}>
                       <label><span className="label-icon">🕐</span> Time *</label>
-                      <div className="time-picker-wrapper">
-                        <input type="time" name="time" value={formData.time} onChange={handleChange} required className="time-input" />
-                        {formData.time && <span className="time-display">{fmt(formData.time)}</span>}
-                      </div>
+                      <TapTimePicker value={formData.time} onChange={(val) => setFormData(p => ({ ...p, time: val }))} />
                     </div>
                   )}
                 </div>

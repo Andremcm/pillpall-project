@@ -1,6 +1,6 @@
-/* ===========================
-   LOGIN PAGE STYLES - GREEN THEME
-   =========================== */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+
+* { font-family: 'Nunito', sans-serif; }
 
 .login-container {
   min-height: 100vh;
@@ -9,11 +9,10 @@
   justify-content: center;
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  background: linear-gradient(135deg, #43a047 0%, #2e7d32 100%);
   padding: 20px;
 }
 
-/* Animated Background Circles */
 .background-animation {
   position: absolute;
   width: 100%;
@@ -25,50 +24,20 @@
 .circle {
   position: absolute;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255,255,255,0.1);
   animation: float 20s infinite ease-in-out;
 }
-
-.circle-1 {
-  width: 300px;
-  height: 300px;
-  top: -150px;
-  left: -150px;
-  animation-delay: 0s;
-}
-
-.circle-2 {
-  width: 200px;
-  height: 200px;
-  bottom: -100px;
-  right: -100px;
-  animation-delay: 5s;
-}
-
-.circle-3 {
-  width: 150px;
-  height: 150px;
-  top: 50%;
-  right: 10%;
-  animation-delay: 10s;
-}
+.circle-1 { width: 300px; height: 300px; top: -150px; left: -150px; animation-delay: 0s; }
+.circle-2 { width: 200px; height: 200px; bottom: -100px; right: -100px; animation-delay: 5s; }
+.circle-3 { width: 150px; height: 150px; top: 50%; right: 10%; animation-delay: 10s; }
 
 @keyframes float {
-  0%, 100% {
-    transform: translateY(0) translateX(0);
-  }
-  25% {
-    transform: translateY(-30px) translateX(30px);
-  }
-  50% {
-    transform: translateY(-60px) translateX(-30px);
-  }
-  75% {
-    transform: translateY(-30px) translateX(30px);
-  }
+  0%, 100% { transform: translateY(0) translateX(0); }
+  25%       { transform: translateY(-30px) translateX(30px); }
+  50%       { transform: translateY(-60px) translateX(-30px); }
+  75%       { transform: translateY(-30px) translateX(30px); }
 }
 
-/* Main Content */
 .login-content {
   position: relative;
   z-index: 1;
@@ -78,66 +47,52 @@
 }
 
 @keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Logo Section */
-.logo-section {
-  text-align: center;
-  margin-bottom: 30px;
-  animation: fadeIn 1s ease-out;
-}
+.logo-section { text-align: center; margin-bottom: 30px; }
 
 .logo-icon {
   font-size: 80px;
   margin-bottom: 15px;
+  display: block;
   animation: bounce 2s infinite;
 }
 
 @keyframes bounce {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-10px); }
 }
 
 .app-title {
   font-size: 48px;
-  font-weight: 700;
+  font-weight: 800;
   color: white;
   margin: 0;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+  font-family: 'Nunito', sans-serif;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
 }
 
 .app-subtitle {
   font-size: 18px;
-  color: rgba(255, 255, 255, 0.9);
-  margin: 8px 0 0 0;
+  color: rgba(255,255,255,0.9);
+  margin: 8px 0 0;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
 }
 
-/* Auth Card */
 .auth-card {
   background: white;
   border-radius: 24px;
   padding: 40px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(10px);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
 }
 
-/* Tab Switcher */
 .tab-switcher {
   display: flex;
   gap: 10px;
-  margin-bottom: 30px;
+  margin-bottom: 28px;
   background: #f5f5f5;
   padding: 6px;
   border-radius: 12px;
@@ -148,29 +103,33 @@
   padding: 12px;
   border: none;
   background: transparent;
-  font-size: 16px;
-  font-weight: 600;
-  color: #666;
+  font-size: 15px;
+  font-weight: 700;
+  color: #888;
   cursor: pointer;
   border-radius: 8px;
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
+  font-family: 'Nunito', sans-serif;
+}
+.tab.active { background: white; color: #2e7d32; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.tab:hover:not(.active) { color: #43a047; }
+
+.error-box {
+  background: #ffebee;
+  color: #c62828;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  text-align: center;
+  font-family: 'Nunito', sans-serif;
 }
 
-.tab.active {
-  background: white;
-  color: #4CAF50;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.tab:hover:not(.active) {
-  color: #4CAF50;
-}
-
-/* Form */
 .auth-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
 }
 
 .form-group {
@@ -180,172 +139,130 @@
 }
 
 .form-group label {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
   color: #333;
   display: flex;
   align-items: center;
   gap: 8px;
+  font-family: 'Nunito', sans-serif;
 }
 
-.form-group .icon {
-  font-size: 20px;
-}
+.icon { font-size: 18px; }
 
 .form-group input {
   padding: 14px 16px;
-  font-size: 16px;
+  font-size: 15px;
+  font-weight: 600;
   border: 2px solid #e0e0e0;
   border-radius: 12px;
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
   outline: none;
-  color: #333; /* FIXED: Make text darker and visible */
-  font-weight: 500; /* FIXED: Make text bolder */
-  background: white; /* FIXED: Ensure white background */
+  color: #222;
+  background: white;
+  font-family: 'Nunito', sans-serif;
+  width: 100%;
+  box-sizing: border-box;
 }
-
 .form-group input:focus {
-  border-color: #4CAF50;
-  box-shadow: 0 0 0 4px rgba(76, 175, 80, 0.1);
+  border-color: #43a047;
+  box-shadow: 0 0 0 4px rgba(67,160,71,0.12);
+}
+.form-group input::placeholder { color: #bbb; font-weight: 400; }
+
+/* Password eye toggle */
+.password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
 }
 
-.form-group input::placeholder {
+.password-wrapper input {
+  padding-right: 48px;
+  width: 100%;
+}
+
+.eye-btn {
+  position: absolute;
+  right: 14px;
+  background: none;
+  border: none;
+  cursor: pointer;
   color: #aaa;
-  font-weight: 400; /* Placeholder stays lighter */
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: color 0.2s;
+  line-height: 1;
 }
+.eye-btn:hover { color: #43a047; }
 
-/* Password input - make the dots/bullets darker */
-.form-group input[type="password"] {
-  color: #000; /* EXTRA FIX: Make password dots completely black */
-  font-weight: 600; /* Make password text even bolder */
-}
-
-/* Forgot Password */
-.forgot-password {
-  text-align: right;
-  margin-top: -10px;
-}
-
+.forgot-password { text-align: right; margin-top: -4px; }
 .forgot-password a {
-  color: #4CAF50;
-  font-size: 14px;
+  color: #43a047;
+  font-size: 13px;
   text-decoration: none;
-  font-weight: 500;
+  font-weight: 700;
+  font-family: 'Nunito', sans-serif;
 }
+.forgot-password a:hover { text-decoration: underline; }
 
-.forgot-password a:hover {
-  text-decoration: underline;
-}
-
-/* Submit Button */
 .submit-btn {
   padding: 16px;
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 800;
   color: white;
-  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  background: linear-gradient(135deg, #43a047, #2e7d32);
   border: none;
   border-radius: 12px;
   cursor: pointer;
-  transition: all 0.3s ease;
-  margin-top: 10px;
+  transition: all 0.25s ease;
+  margin-top: 6px;
+  font-family: 'Nunito', sans-serif;
+  box-shadow: 0 4px 14px rgba(46,125,50,0.3);
 }
+.submit-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(46,125,50,0.4); }
+.submit-btn:active { transform: translateY(0); }
 
-.submit-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(76, 175, 80, 0.4);
-}
-
-.submit-btn:active {
-  transform: translateY(0);
-}
-
-/* Alternative Action */
 .alternative-action {
   text-align: center;
   margin-top: 24px;
-  padding-top: 24px;
-  border-top: 1px solid #e0e0e0;
+  padding-top: 20px;
+  border-top: 1px solid #f0f0f0;
 }
-
 .alternative-action p {
-  color: #666;
-  font-size: 15px;
+  color: #888;
+  font-size: 14px;
   margin: 0;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
 }
 
 .link-btn {
   background: none;
   border: none;
-  color: #4CAF50;
-  font-weight: 600;
+  color: #43a047;
+  font-weight: 800;
   cursor: pointer;
-  text-decoration: none;
   padding: 0;
-  font-size: 15px;
+  font-size: 14px;
+  font-family: 'Nunito', sans-serif;
 }
+.link-btn:hover { text-decoration: underline; }
 
-.link-btn:hover {
-  text-decoration: underline;
-}
-
-/* Footer */
-.login-footer {
-  text-align: center;
-  margin-top: 30px;
-  animation: fadeIn 1.5s ease-out;
-}
-
+.login-footer { text-align: center; margin-top: 28px; }
 .login-footer p {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 16px;
+  color: rgba(255,255,255,0.9);
+  font-size: 15px;
   margin: 0;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 600;
 }
 
-/* Responsive Design */
 @media (max-width: 500px) {
-  .auth-card {
-    padding: 30px 24px;
-  }
-
-  .app-title {
-    font-size: 36px;
-  }
-
-  .logo-icon {
-    font-size: 60px;
-  }
-
-  .form-group input {
-    font-size: 16px;
-  }
-}
-
-/* Animations for form fields */
-.form-group {
-  animation: fadeInUp 0.6s ease-out backwards;
-}
-
-.form-group:nth-child(1) { animation-delay: 0.1s; }
-.form-group:nth-child(2) { animation-delay: 0.2s; }
-.form-group:nth-child(3) { animation-delay: 0.3s; }
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  .auth-card { padding: 28px 20px; }
+  .app-title  { font-size: 36px; }
+  .logo-icon  { font-size: 60px; }
 }
