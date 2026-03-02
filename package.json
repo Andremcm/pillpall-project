@@ -14,8 +14,10 @@
     "@typescript-eslint/eslint-plugin": "^8.56.1",
     "@typescript-eslint/parser": "^8.56.1",
     "bcryptjs": "^3.0.3",
+    "googleapis": "^171.4.0",
     "jsonwebtoken": "^9.0.3",
     "next": "16.1.6",
+    "next-auth": "^4.24.13",
     "prisma": "^5.22.0",
     "react": "19.2.3",
     "react-dom": "19.2.3"

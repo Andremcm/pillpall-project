@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession, signIn } from 'next-auth/react';
 import './calendar.css';
 
 const MED_COLORS = ['#e53935','#d81b60','#8e24aa','#3949ab','#1e88e5','#00897b','#43a047','#f4511e','#fb8c00','#f6bf26','#33b679','#0b8043'];
@@ -45,12 +46,11 @@ function EndDatePicker({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const [viewDate, setViewDate] = useState(() => value ? new Date(value + 'T00:00:00') : new Date());
   const wrapRef = useRef(null);
-
   const today = new Date(); today.setHours(0,0,0,0);
-  const year  = viewDate.getFullYear();
+  const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstDay    = new Date(year, month, 1).getDay();
+  const firstDay = new Date(year, month, 1).getDay();
   const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
   useEffect(() => {
@@ -63,8 +63,7 @@ function EndDatePicker({ value, onChange }) {
     const dt = new Date(year, month, day); dt.setHours(0,0,0,0);
     if (dt < today) return;
     const str = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-    onChange(str);
-    setOpen(false);
+    onChange(str); setOpen(false);
   };
 
   const cells = [];
@@ -86,14 +85,12 @@ function EndDatePicker({ value, onChange }) {
       {open && (
         <div className="edp-panel">
           <div className="edp-nav">
-            <button type="button" className="edp-nav-btn" onClick={() => setViewDate(new Date(year, month - 1))}>‹</button>
+            <button type="button" className="edp-nav-btn" onClick={() => setViewDate(new Date(year, month-1))}>‹</button>
             <span className="edp-nav-title">{MONTH_NAMES[month]} {year}</span>
-            <button type="button" className="edp-nav-btn" onClick={() => setViewDate(new Date(year, month + 1))}>›</button>
+            <button type="button" className="edp-nav-btn" onClick={() => setViewDate(new Date(year, month+1))}>›</button>
           </div>
           <div className="edp-grid">
-            {['S','M','T','W','T','F','S'].map((d,i) => (
-              <div key={i} className="edp-day-header">{d}</div>
-            ))}
+            {['S','M','T','W','T','F','S'].map((d,i) => <div key={i} className="edp-day-header">{d}</div>)}
             {cells.map((day, i) => {
               if (!day) return <div key={i} />;
               const dt = new Date(year, month, day); dt.setHours(0,0,0,0);
@@ -103,17 +100,13 @@ function EndDatePicker({ value, onChange }) {
               const isToday = dt.getTime() === today.getTime();
               return (
                 <button key={i} type="button"
-                  className={`edp-day${isPast ? ' past' : ''}${isSelected ? ' selected' : ''}${isToday ? ' today' : ''}`}
-                  onClick={() => selectDay(day)} disabled={isPast}>
-                  {day}
-                </button>
+                  className={`edp-day${isPast?' past':''}${isSelected?' selected':''}${isToday?' today':''}`}
+                  onClick={() => selectDay(day)} disabled={isPast}>{day}</button>
               );
             })}
           </div>
           {value && (
-            <button type="button" className="edp-clear" onClick={() => { onChange(''); setOpen(false); }}>
-              Clear end date
-            </button>
+            <button type="button" className="edp-clear" onClick={() => { onChange(''); setOpen(false); }}>Clear end date</button>
           )}
         </div>
       )}
@@ -178,6 +171,7 @@ function MiniCalendarEdit({ selectedDates, onChange }) {
 
 export default function CalendarPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [allReminders, setAllReminders] = useState([]);
@@ -188,6 +182,8 @@ export default function CalendarPage() {
   const [editSaving, setEditSaving] = useState(false);
   const [toast, setToast] = useState('');
   const [showEditUntil, setShowEditUntil] = useState(false);
+  const [syncingAll, setSyncingAll] = useState(false);
+  const [syncedIds, setSyncedIds] = useState(new Set());
 
   const today = new Date(); today.setHours(0,0,0,0);
 
@@ -215,6 +211,46 @@ export default function CalendarPage() {
   };
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
+
+  // ── Sync a single reminder to Google Calendar ──
+  const syncToGoogle = async (reminder) => {
+    if (!session) { signIn('google'); return; }
+    try {
+      const res = await fetch('/api/calendar/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          medicine: reminder.medicine,
+          dosage: reminder.dosage,
+          time: reminder.time,
+          frequency: reminder.frequency,
+          endDate: reminder.endDate || null,
+          customDates: reminder.customDates || [],
+        }),
+      });
+      if (res.ok) {
+        setSyncedIds(prev => new Set([...prev, `${reminder.id}_${reminder.isSecond ? '2' : '1'}`]));
+        return true;
+      }
+      return false;
+    } catch { return false; }
+  };
+
+  // ── Sync ALL reminders for selected date ──
+  const syncAllToGoogle = async () => {
+    if (!session) { signIn('google'); return; }
+    setSyncingAll(true);
+    let successCount = 0;
+    for (const reminder of selectedReminders) {
+      const ok = await syncToGoogle(reminder);
+      if (ok) successCount++;
+    }
+    showToast(successCount > 0
+      ? `✓ Synced ${successCount} reminder${successCount > 1 ? 's' : ''} to Google Calendar!`
+      : 'Failed to sync. Please try again.');
+    setSyncingAll(false);
+  };
+
   const getDaysInMonth = (date) => new Date(date.getFullYear(), date.getMonth()+1, 0).getDate();
   const getFirstDayOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1).getDay();
   const getMonthName = (date) => date.toLocaleString('default', { month:'long' });
@@ -353,25 +389,21 @@ export default function CalendarPage() {
                 style={{ background:'#f0f0f0', border:'none', borderRadius:'50%', width:'32px', height:'32px', cursor:'pointer', fontSize:'14px', fontWeight:'700', fontFamily:'Nunito,sans-serif' }}>✕</button>
             </div>
             <form onSubmit={handleEditSubmit} style={{ display:'flex', flexDirection:'column', gap:'14px' }}>
-
               <div style={{ display:'flex', flexDirection:'column', gap:'5px' }}>
                 <label style={labelStyle}>Medicine Name *</label>
                 <input type="text" value={editForm.medicineName} required style={inputStyle}
                   onChange={e => setEditForm(p => ({...p, medicineName:e.target.value}))} />
               </div>
-
               <div style={{ display:'flex', flexDirection:'column', gap:'5px' }}>
                 <label style={labelStyle}>Dosage *</label>
                 <input type="text" value={editForm.dosage} required style={inputStyle}
                   onChange={e => setEditForm(p => ({...p, dosage:e.target.value}))} />
               </div>
-
               <div style={{ display:'flex', flexDirection:'column', gap:'5px' }}>
                 <label style={labelStyle}>Frequency</label>
                 <select value={editForm.frequency}
                   onChange={e => setEditForm(p => ({
-                    ...p,
-                    frequency: e.target.value,
+                    ...p, frequency: e.target.value,
                     customDates: e.target.value !== 'custom' ? [] : p.customDates,
                     endDate: !['daily','twice-daily'].includes(e.target.value) ? '' : p.endDate
                   }))}
@@ -383,7 +415,6 @@ export default function CalendarPage() {
                 </select>
               </div>
 
-              {/* ── Until / End date ── */}
               {showsUntil && (
                 <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
                   <button type="button"
@@ -399,10 +430,7 @@ export default function CalendarPage() {
                   {showEditUntil && (
                     <div style={{ background:'#f8fdf8', border:'2px solid #e8f5e9', borderRadius:'12px', padding:'14px', display:'flex', flexDirection:'column', gap:'8px' }}>
                       <label style={labelStyle}>Remind me until</label>
-                      <EndDatePicker
-                        value={editForm.endDate}
-                        onChange={(val) => setEditForm(p => ({...p, endDate: val}))}
-                      />
+                      <EndDatePicker value={editForm.endDate} onChange={(val) => setEditForm(p => ({...p, endDate: val}))} />
                       {editForm.endDate && (
                         <span style={{ fontSize:'13px', fontWeight:'700', color:'#43a047', fontFamily:'Nunito,sans-serif' }}>
                           Until {new Date(editForm.endDate + 'T00:00:00').toLocaleDateString('default', { weekday:'short', month:'long', day:'numeric' })}
@@ -416,10 +444,8 @@ export default function CalendarPage() {
               {editForm.frequency === 'custom' && (
                 <div style={{ display:'flex', flexDirection:'column', gap:'5px' }}>
                   <label style={labelStyle}>Select Dates *</label>
-                  <MiniCalendarEdit
-                    selectedDates={editForm.customDates}
-                    onChange={(dates) => setEditForm(p => ({...p, customDates: dates}))}
-                  />
+                  <MiniCalendarEdit selectedDates={editForm.customDates}
+                    onChange={(dates) => setEditForm(p => ({...p, customDates: dates}))} />
                 </div>
               )}
 
@@ -458,6 +484,23 @@ export default function CalendarPage() {
       <header className="cal-header">
         <button className="cal-back-btn" onClick={() => router.push('/dashboard')}>← Back</button>
         <h1 className="cal-title">Calendar</h1>
+        {/* Google sign-in status */}
+        <div style={{ marginLeft:'auto' }}>
+          {session ? (
+            <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
+              <img src={session.user?.image} alt="" style={{ width:'28px', height:'28px', borderRadius:'50%', border:'2px solid white' }} />
+              <span style={{ color:'white', fontSize:'12px', fontWeight:'700', fontFamily:'Nunito,sans-serif' }}>
+                {session.user?.name?.split(' ')[0]}
+              </span>
+            </div>
+          ) : (
+            <button onClick={() => signIn('google')}
+              style={{ display:'flex', alignItems:'center', gap:'6px', background:'white', border:'none', borderRadius:'10px', padding:'6px 12px', cursor:'pointer', fontSize:'12px', fontWeight:'800', color:'#2e7d32', fontFamily:'Nunito,sans-serif' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2" stroke="#4285F4" strokeWidth="2" fill="none"/><path d="M16 2v4M8 2v4M3 10h18" stroke="#4285F4" strokeWidth="2" strokeLinecap="round"/></svg>
+              Connect Google
+            </button>
+          )}
+        </div>
       </header>
 
       <main className="cal-main">
@@ -503,7 +546,30 @@ export default function CalendarPage() {
         )}
 
         <div className="schedule-section">
-          <h3 className="schedule-heading">📋 {formatSelectedDate()}</h3>
+          {/* Header row with sync button */}
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'4px' }}>
+            <h3 className="schedule-heading" style={{ margin:0 }}>📋 {formatSelectedDate()}</h3>
+            {selectedReminders.length > 0 && (
+              <button onClick={syncAllToGoogle} disabled={syncingAll}
+                style={{ display:'flex', alignItems:'center', gap:'6px', padding:'8px 14px',
+                  background: session ? 'white' : '#f5f5f5',
+                  border:'2px solid #e0e0e0', borderRadius:'10px',
+                  cursor: syncingAll ? 'wait' : 'pointer',
+                  fontSize:'12px', fontWeight:'800', color: session ? '#2e7d32' : '#aaa',
+                  fontFamily:'Nunito,sans-serif', whiteSpace:'nowrap',
+                  boxShadow:'0 2px 6px rgba(0,0,0,0.06)', transition:'all 0.2s' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <rect x="3" y="4" width="18" height="17" rx="2" stroke="#4285F4" strokeWidth="2"/>
+                  <path d="M16 2v4M8 2v4M3 10h18" stroke="#4285F4" strokeWidth="2" strokeLinecap="round"/>
+                  <rect x="8" y="13" width="3" height="3" rx="0.5" fill="#34A853"/>
+                  <rect x="13" y="13" width="3" height="3" rx="0.5" fill="#FBBC05"/>
+                  <rect x="8" y="17" width="3" height="3" rx="0.5" fill="#EA4335"/>
+                </svg>
+                {syncingAll ? 'Syncing...' : session ? 'Sync to Google Cal' : 'Connect Google'}
+              </button>
+            )}
+          </div>
+
           {loading ? (
             <div className="no-schedule"><span className="no-schedule-icon">⏳</span><p>Loading...</p></div>
           ) : selectedReminders.length > 0 ? (
@@ -513,6 +579,8 @@ export default function CalendarPage() {
                 const taken = isTakenOnDate(reminder, selectedDate);
                 const isPastDate = isSelectedPast();
                 const isTodayDate = isSelectedToday();
+                const syncKey = `${reminder.id}_${reminder.isSecond ? '2' : '1'}`;
+                const isSynced = syncedIds.has(syncKey);
                 return (
                   <div key={`${reminder.id}_${idx}`}
                     className={`schedule-item ${taken?'taken':''} ${isPastDate&&!taken?'missed':''}`}
@@ -522,12 +590,20 @@ export default function CalendarPage() {
                       <div className="med-info">
                         <div className="med-name">{reminder.medicine}</div>
                         <div className="med-details">{reminder.dosage} · {reminder.time}</div>
-                        <span className="freq-badge-small" style={{ color, background: color+'18' }}>
-                          {reminder.frequency === 'twice-daily'
-                            ? (reminder.isSecond ? '2nd dose' : '1st dose')
-                            : (reminder.frequency || 'daily')}
-                          {reminder.endDate ? ` · until ${new Date(reminder.endDate + 'T00:00:00').toLocaleDateString('default',{month:'short',day:'numeric'})}` : ''}
-                        </span>
+                        <div style={{ display:'flex', alignItems:'center', gap:'6px', flexWrap:'wrap' }}>
+                          <span className="freq-badge-small" style={{ color, background: color+'18' }}>
+                            {reminder.frequency === 'twice-daily'
+                              ? (reminder.isSecond ? '2nd dose' : '1st dose')
+                              : (reminder.frequency || 'daily')}
+                            {reminder.endDate ? ` · until ${new Date(reminder.endDate + 'T00:00:00').toLocaleDateString('default',{month:'short',day:'numeric'})}` : ''}
+                          </span>
+                          {/* Per-reminder sync badge */}
+                          {isSynced && (
+                            <span style={{ fontSize:'10px', fontWeight:'800', color:'#4285F4', background:'#e8f0fe', padding:'2px 7px', borderRadius:'20px' }}>
+                              ✓ In Google Cal
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div style={{ display:'flex', alignItems:'center', gap:'8px', flexShrink:0 }}>
