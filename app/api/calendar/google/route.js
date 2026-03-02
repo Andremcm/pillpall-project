@@ -1,7 +1,7 @@
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { google } from 'googleapis';
 
-// Helper: build OAuth2 client from session token
 function getOAuthClient(accessToken) {
   const auth = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
@@ -11,9 +11,11 @@ function getOAuthClient(accessToken) {
   return auth;
 }
 
-// GET /api/calendar/google — list upcoming events
+// GET /api/calendar/google
 export async function GET(req) {
-  const session = await getServerSession();
+  const session = await getServerSession(authOptions);
+  console.log('GET session:', JSON.stringify(session, null, 2));
+
   if (!session?.accessToken) {
     return Response.json({ error: 'Not authenticated' }, { status: 401 });
   }
@@ -37,9 +39,12 @@ export async function GET(req) {
   }
 }
 
-// POST /api/calendar/google — create an event from a reminder
+// POST /api/calendar/google
 export async function POST(req) {
-  const session = await getServerSession();
+  const session = await getServerSession(authOptions);
+  console.log('POST session:', JSON.stringify(session, null, 2));
+  console.log('POST accessToken:', session?.accessToken);
+
   if (!session?.accessToken) {
     return Response.json({ error: 'Not authenticated' }, { status: 401 });
   }
@@ -50,19 +55,25 @@ export async function POST(req) {
     const auth = getOAuthClient(session.accessToken);
     const calendar = google.calendar({ version: 'v3', auth });
 
-    // Build start datetime for today at the reminder time
-    const [hours, minutes] = time.split(':').map(Number);
+    // Parse time — handle both "HH:MM" and "H:MM AM/PM" formats
+    let hours, minutes;
+    const ampmMatch = String(time).match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (ampmMatch) {
+      hours = parseInt(ampmMatch[1]);
+      minutes = parseInt(ampmMatch[2]);
+      const ampm = ampmMatch[3].toUpperCase();
+      if (ampm === 'PM' && hours !== 12) hours += 12;
+      if (ampm === 'AM' && hours === 12) hours = 0;
+    } else {
+      [hours, minutes] = String(time).split(':').map(Number);
+    }
+
     const start = new Date();
     start.setHours(hours, minutes, 0, 0);
-    const end = new Date(start.getTime() + 30 * 60000); // 30 min duration
+    const end = new Date(start.getTime() + 30 * 60000);
 
-    // Build recurrence rule
     let recurrence = [];
-    if (frequency === 'daily') {
-      recurrence = endDate
-        ? [`RRULE:FREQ=DAILY;UNTIL=${endDate.replace(/-/g, '')}T235959Z`]
-        : ['RRULE:FREQ=DAILY'];
-    } else if (frequency === 'twice-daily') {
+    if (frequency === 'daily' || frequency === 'twice-daily') {
       recurrence = endDate
         ? [`RRULE:FREQ=DAILY;UNTIL=${endDate.replace(/-/g, '')}T235959Z`]
         : ['RRULE:FREQ=DAILY'];
@@ -72,17 +83,13 @@ export async function POST(req) {
         : ['RRULE:FREQ=WEEKLY'];
     }
 
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
     const event = {
       summary: `💊 ${medicine}`,
-      description: `Dosage: ${dosage}\nFrequency: ${frequency}`,
-      start: {
-        dateTime: start.toISOString(),
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      },
-      end: {
-        dateTime: end.toISOString(),
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      },
+      description: `Dosage: ${dosage}\nFrequency: ${frequency}\nManaged by PillPal`,
+      start: { dateTime: start.toISOString(), timeZone },
+      end:   { dateTime: end.toISOString(),   timeZone },
       recurrence,
       reminders: {
         useDefault: false,
@@ -105,9 +112,11 @@ export async function POST(req) {
   }
 }
 
-// DELETE /api/calendar/google?eventId=xxx — remove an event
+// DELETE /api/calendar/google?eventId=xxx
 export async function DELETE(req) {
-  const session = await getServerSession();
+  const session = await getServerSession(authOptions);
+  console.log('DELETE session:', JSON.stringify(session, null, 2));
+
   if (!session?.accessToken) {
     return Response.json({ error: 'Not authenticated' }, { status: 401 });
   }
