@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import './calendar.css';
 
@@ -13,7 +13,6 @@ function generateColor(name) {
   return MED_COLORS[Math.abs(hash) % MED_COLORS.length];
 }
 
-// ✅ Timezone-safe date string
 function toDateStr(date) {
   const d = new Date(date);
   const offset = d.getTimezoneOffset() * 60000;
@@ -22,37 +21,108 @@ function toDateStr(date) {
   return datePart;
 }
 
-// ✅ Updated: respects endDate for daily/twice-daily
 function reminderAppearsOn(reminder, date) {
   const d = new Date(date); d.setHours(0,0,0,0);
-
   const start = reminder.startDate ? new Date(reminder.startDate) : new Date(0);
   start.setHours(0,0,0,0);
   if (d < start) return false;
-
-  // ✅ Stop showing after endDate
   if (reminder.endDate) {
     const end = new Date(reminder.endDate + 'T00:00:00');
     end.setHours(0,0,0,0);
     if (d > end) return false;
   }
-
   switch (reminder.frequency) {
     case 'daily':
-    case 'twice-daily':
-      return true;
-    case 'weekly':
-      return d.getDay() === reminder.dayOfWeek;
-    case 'custom':
-      return (reminder.customDates || []).includes(toDateStr(d));
-    default:
-      return true;
+    case 'twice-daily': return true;
+    case 'weekly': return d.getDay() === reminder.dayOfWeek;
+    case 'custom': return (reminder.customDates || []).includes(toDateStr(d));
+    default: return true;
   }
+}
+
+// ── Custom End Date Picker ───────────────────────────────────────────
+function EndDatePicker({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [viewDate, setViewDate] = useState(() => value ? new Date(value + 'T00:00:00') : new Date());
+  const wrapRef = useRef(null);
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const year  = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDay    = new Date(year, month, 1).getDay();
+  const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  useEffect(() => {
+    const handler = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const selectDay = (day) => {
+    const dt = new Date(year, month, day); dt.setHours(0,0,0,0);
+    if (dt < today) return;
+    const str = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    onChange(str);
+    setOpen(false);
+  };
+
+  const cells = [];
+  for (let i = 0; i < firstDay; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  const displayValue = value
+    ? new Date(value + 'T00:00:00').toLocaleDateString('default', { month:'long', day:'numeric', year:'numeric' })
+    : 'Select end date';
+
+  return (
+    <div className="edp-wrap" ref={wrapRef}>
+      <button type="button" className={`edp-trigger${value ? ' has-value' : ''}${open ? ' open' : ''}`}
+        onClick={() => setOpen(o => !o)}>
+        <span className="edp-icon">📅</span>
+        <span className="edp-display">{displayValue}</span>
+        <span className="edp-chevron">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="edp-panel">
+          <div className="edp-nav">
+            <button type="button" className="edp-nav-btn" onClick={() => setViewDate(new Date(year, month - 1))}>‹</button>
+            <span className="edp-nav-title">{MONTH_NAMES[month]} {year}</span>
+            <button type="button" className="edp-nav-btn" onClick={() => setViewDate(new Date(year, month + 1))}>›</button>
+          </div>
+          <div className="edp-grid">
+            {['S','M','T','W','T','F','S'].map((d,i) => (
+              <div key={i} className="edp-day-header">{d}</div>
+            ))}
+            {cells.map((day, i) => {
+              if (!day) return <div key={i} />;
+              const dt = new Date(year, month, day); dt.setHours(0,0,0,0);
+              const isPast = dt < today;
+              const str = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+              const isSelected = value === str;
+              const isToday = dt.getTime() === today.getTime();
+              return (
+                <button key={i} type="button"
+                  className={`edp-day${isPast ? ' past' : ''}${isSelected ? ' selected' : ''}${isToday ? ' today' : ''}`}
+                  onClick={() => selectDay(day)} disabled={isPast}>
+                  {day}
+                </button>
+              );
+            })}
+          </div>
+          {value && (
+            <button type="button" className="edp-clear" onClick={() => { onChange(''); setOpen(false); }}>
+              Clear end date
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function MiniCalendarEdit({ selectedDates, onChange }) {
   const [viewDate, setViewDate] = useState(new Date());
-  const today = new Date(); today.setHours(0,0,0,0);
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
   const daysInMonth = new Date(year, month+1, 0).getDate();
@@ -89,8 +159,7 @@ function MiniCalendarEdit({ selectedDates, onChange }) {
           return (
             <div key={i} onClick={() => toggleDate(day)}
               style={{ textAlign:'center', padding:'6px 2px', fontSize:'12px', fontWeight:'700', borderRadius:'7px', cursor:'pointer',
-                background: isSelected ? '#43a047' : 'transparent',
-                color: isSelected ? 'white' : '#333' }}>
+                background: isSelected ? '#43a047' : 'transparent', color: isSelected ? 'white' : '#333' }}>
               {day}
             </div>
           );
@@ -146,7 +215,6 @@ export default function CalendarPage() {
   };
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
-
   const getDaysInMonth = (date) => new Date(date.getFullYear(), date.getMonth()+1, 0).getDate();
   const getFirstDayOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1).getDay();
   const getMonthName = (date) => date.toLocaleString('default', { month:'long' });
@@ -216,11 +284,6 @@ export default function CalendarPage() {
     } catch { showToast('Network error.'); }
   };
 
-  const todayStr = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  };
-
   const openEdit = (reminder) => {
     const toTimeInput = (t) => {
       if (!t) return '';
@@ -231,7 +294,7 @@ export default function CalendarPage() {
       if (ampm === 'AM' && h === 12) h = 0;
       return `${String(h).padStart(2,'0')}:${m}`;
     };
-    const hasEnd = !!reminder.endDate;
+    setShowEditUntil(!!reminder.endDate);
     setEditForm({
       medicineName: reminder.medicine,
       dosage: reminder.dosage,
@@ -240,15 +303,13 @@ export default function CalendarPage() {
       customDates: reminder.customDates || [],
       endDate: reminder.endDate || ''
     });
-    setShowEditUntil(hasEnd);
     setEditingReminder(reminder);
   };
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     if (editForm.frequency === 'custom' && editForm.customDates.length === 0) {
-      showToast('Please select at least one date.');
-      return;
+      showToast('Please select at least one date.'); return;
     }
     setEditSaving(true);
     try {
@@ -264,26 +325,18 @@ export default function CalendarPage() {
           secondTime: null
         })
       });
-      if (res.ok) {
-        showToast('Reminder updated!');
-        setEditingReminder(null);
-        await fetchData();
-      } else {
-        const d = await res.json();
-        showToast('Error: ' + (d.error || 'Update failed'));
-      }
+      if (res.ok) { showToast('Reminder updated!'); setEditingReminder(null); await fetchData(); }
+      else { const d = await res.json(); showToast('Error: ' + (d.error || 'Update failed')); }
     } catch { showToast('Network error.'); }
     setEditSaving(false);
   };
 
   const fmt = (t) => { if (!t) return ''; const [h,m] = t.split(':'); const hr=parseInt(h); return `${hr%12||12}:${m} ${hr>=12?'PM':'AM'}`; };
-
+  const showsUntil = ['daily','twice-daily'].includes(editForm.frequency);
   const selectedReminders = getRemindersForDate(selectedDate);
   const todayReminders    = getRemindersForDate(today);
   const takenTodayCount   = todayReminders.filter(r => isTakenOnDate(r, today)).length;
   const formatSelectedDate = () => selectedDate.toLocaleDateString('default', { weekday:'long', month:'long', day:'numeric' });
-
-  const showsUntil = ['daily','twice-daily'].includes(editForm.frequency);
 
   const inputStyle = { padding:'12px', border:'2px solid #e0e0e0', borderRadius:'10px', fontSize:'15px', fontFamily:'Nunito,sans-serif', fontWeight:'600', outline:'none', color:'#222', width:'100%', boxSizing:'border-box' };
   const labelStyle = { fontSize:'12px', fontWeight:'800', color:'#2e7d32', textTransform:'uppercase', letterSpacing:'0.5px', fontFamily:'Nunito,sans-serif' };
@@ -291,7 +344,6 @@ export default function CalendarPage() {
   return (
     <div className="cal-container">
 
-      {/* Edit Modal */}
       {editingReminder && (
         <div className="modal-overlay">
           <div className="modal-card" style={{ maxWidth:'400px', textAlign:'left', maxHeight:'90vh', overflowY:'auto' }}>
@@ -331,7 +383,7 @@ export default function CalendarPage() {
                 </select>
               </div>
 
-              {/* Until / End date (daily & twice-daily only) */}
+              {/* ── Until / End date ── */}
               {showsUntil && (
                 <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
                   <button type="button"
@@ -345,11 +397,12 @@ export default function CalendarPage() {
                     {showEditUntil ? 'Remove end date' : 'Set end date (optional)'}
                   </button>
                   {showEditUntil && (
-                    <div style={{ background:'#f8fdf8', border:'2px solid #e8f5e9', borderRadius:'12px', padding:'14px', display:'flex', flexDirection:'column', gap:'6px' }}>
+                    <div style={{ background:'#f8fdf8', border:'2px solid #e8f5e9', borderRadius:'12px', padding:'14px', display:'flex', flexDirection:'column', gap:'8px' }}>
                       <label style={labelStyle}>Remind me until</label>
-                      <input type="date" value={editForm.endDate} min={todayStr()}
-                        style={inputStyle}
-                        onChange={e => setEditForm(p => ({...p, endDate: e.target.value}))} />
+                      <EndDatePicker
+                        value={editForm.endDate}
+                        onChange={(val) => setEditForm(p => ({...p, endDate: val}))}
+                      />
                       {editForm.endDate && (
                         <span style={{ fontSize:'13px', fontWeight:'700', color:'#43a047', fontFamily:'Nunito,sans-serif' }}>
                           Until {new Date(editForm.endDate + 'T00:00:00').toLocaleDateString('default', { weekday:'short', month:'long', day:'numeric' })}
