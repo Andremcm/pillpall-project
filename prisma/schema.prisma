@@ -36,6 +36,7 @@ model Reminder {
   medicationId Int
   reminderTime DateTime
   secondTime   DateTime?
+  googleEventId  String?
   logs         Log[]
   medication   Medication @relation(fields: [medicationId], references: [id])
 }

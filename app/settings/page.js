@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import './settings.css';
+import './setting.css';
 
 export default function SettingsPage() {
   const router = useRouter();

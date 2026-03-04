@@ -1,138 +1,115 @@
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { google } from 'googleapis';
 
-function getOAuthClient(accessToken) {
+function getOAuthClient(accessToken, refreshToken = null) {
   const auth = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET
+    process.env.GOOGLE_CLIENT_SECRET,
+    process.env.GOOGLE_REDIRECT_URI
   );
-  auth.setCredentials({ access_token: accessToken });
+  auth.setCredentials({ 
+    access_token: accessToken,
+    refresh_token: refreshToken
+  });
   return auth;
 }
 
-// GET /api/calendar/google
-export async function GET(req) {
-  const session = await getServerSession(authOptions);
-  console.log('GET session:', JSON.stringify(session, null, 2));
-
-  if (!session?.accessToken) {
-    return Response.json({ error: 'Not authenticated' }, { status: 401 });
-  }
-
-  try {
-    const auth = getOAuthClient(session.accessToken);
-    const calendar = google.calendar({ version: 'v3', auth });
-
-    const res = await calendar.events.list({
-      calendarId: 'primary',
-      timeMin: new Date().toISOString(),
-      maxResults: 50,
-      singleEvents: true,
-      orderBy: 'startTime',
-    });
-
-    return Response.json(res.data.items || []);
-  } catch (err) {
-    console.error('Google Calendar GET error:', err);
-    return Response.json({ error: 'Failed to fetch events' }, { status: 500 });
-  }
-}
-
-// POST /api/calendar/google
+// POST /api/calendar/google — create OR update
 export async function POST(req) {
-  const session = await getServerSession(authOptions);
-  console.log('POST session:', JSON.stringify(session, null, 2));
-  console.log('POST accessToken:', session?.accessToken);
-
-  if (!session?.accessToken) {
-    return Response.json({ error: 'Not authenticated' }, { status: 401 });
-  }
-
   try {
-    const { medicine, dosage, time, frequency, endDate } = await req.json();
+    const body = await req.json();
+    const { medicine, dosage, time, frequency, endDate, date, eventId, accessToken, refreshToken } = body;
 
-    const auth = getOAuthClient(session.accessToken);
-    const calendar = google.calendar({ version: 'v3', auth });
-
-    // Parse time — handle both "HH:MM" and "H:MM AM/PM" formats
-    let hours, minutes;
-    const ampmMatch = String(time).match(/(\d+):(\d+)\s*(AM|PM)/i);
-    if (ampmMatch) {
-      hours = parseInt(ampmMatch[1]);
-      minutes = parseInt(ampmMatch[2]);
-      const ampm = ampmMatch[3].toUpperCase();
-      if (ampm === 'PM' && hours !== 12) hours += 12;
-      if (ampm === 'AM' && hours === 12) hours = 0;
-    } else {
-      [hours, minutes] = String(time).split(':').map(Number);
+    if (!accessToken) {
+      return Response.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    const start = new Date();
-    start.setHours(hours, minutes, 0, 0);
-    const end = new Date(start.getTime() + 30 * 60000);
+    const auth = getOAuthClient(accessToken, refreshToken);
+    const calendar = google.calendar({ version: 'v3', auth });
+
+    // Parse time — supports "8:00 AM" or "08:00"
+    const timeMatch = time.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+    if (!timeMatch) return Response.json({ error: 'Invalid time' }, { status: 400 });
+
+    let hours = parseInt(timeMatch[1]);
+    let minutes = parseInt(timeMatch[2]);
+    const ampm = timeMatch[3]?.toUpperCase();
+    if (ampm === 'PM' && hours !== 12) hours += 12;
+    if (ampm === 'AM' && hours === 12) hours = 0;
+
+    const [year, month, day] = (date || new Date().toISOString().split('T')[0]).split('-').map(Number);
+    const start = new Date(year, month - 1, day, hours, minutes, 0);
+    const end   = new Date(start.getTime() + 30 * 60000);
+    const tz    = 'Asia/Manila';
 
     let recurrence = [];
     if (frequency === 'daily' || frequency === 'twice-daily') {
       recurrence = endDate
-        ? [`RRULE:FREQ=DAILY;UNTIL=${endDate.replace(/-/g, '')}T235959Z`]
+        ? [`RRULE:FREQ=DAILY;UNTIL=${endDate.replace(/-/g,'')}T235959Z`]
         : ['RRULE:FREQ=DAILY'];
     } else if (frequency === 'weekly') {
+      const days = ['SU','MO','TU','WE','TH','FR','SA'];
       recurrence = endDate
-        ? [`RRULE:FREQ=WEEKLY;UNTIL=${endDate.replace(/-/g, '')}T235959Z`]
-        : ['RRULE:FREQ=WEEKLY'];
+        ? [`RRULE:FREQ=WEEKLY;BYDAY=${days[start.getDay()]};UNTIL=${endDate.replace(/-/g,'')}T235959Z`]
+        : [`RRULE:FREQ=WEEKLY;BYDAY=${days[start.getDay()]}`];
     }
 
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-    const event = {
+    const eventBody = {
       summary: `💊 ${medicine}`,
-      description: `Dosage: ${dosage}\nFrequency: ${frequency}\nManaged by PillPal`,
-      start: { dateTime: start.toISOString(), timeZone },
-      end:   { dateTime: end.toISOString(),   timeZone },
+      description: `Dosage: ${dosage}\nFrequency: ${frequency}`,
+      start: { dateTime: start.toISOString(), timeZone: tz },
+      end:   { dateTime: end.toISOString(),   timeZone: tz },
       recurrence,
       reminders: {
         useDefault: false,
-        overrides: [
-          { method: 'popup', minutes: 10 },
-          { method: 'email', minutes: 30 },
-        ],
+        overrides: [{ method: 'popup', minutes: 10 }],
       },
     };
 
-    const created = await calendar.events.insert({
-      calendarId: 'primary',
-      resource: event,
-    });
+    let resultEventId;
+    if (eventId) {
+      const updated = await calendar.events.update({
+        calendarId: 'primary', eventId, resource: eventBody,
+      });
+      resultEventId = updated.data.id;
+    } else {
+      const created = await calendar.events.insert({
+        calendarId: 'primary', resource: eventBody,
+      });
+      resultEventId = created.data.id;
+    }
 
-    return Response.json({ success: true, eventId: created.data.id }, { status: 201 });
+    return Response.json({ success: true, eventId: resultEventId }, { status: 201 });
   } catch (err) {
-    console.error('Google Calendar POST error:', err);
-    return Response.json({ error: 'Failed to create event' }, { status: 500 });
+    // Handle expired token explicitly
+    if (err.message?.includes('invalid_grant') || err.message?.includes('Invalid Credentials')) {
+      return Response.json({ error: 'Token expired. Please reconnect your Google account.' }, { status: 401 });
+    }
+    console.error('Google Calendar POST error:', err.message);
+    return Response.json({ error: err.message }, { status: 500 });
   }
 }
 
-// DELETE /api/calendar/google?eventId=xxx
+// DELETE /api/calendar/google?eventId=xxx&accessToken=xxx&refreshToken=xxx
 export async function DELETE(req) {
-  const session = await getServerSession(authOptions);
-  console.log('DELETE session:', JSON.stringify(session, null, 2));
-
-  if (!session?.accessToken) {
-    return Response.json({ error: 'Not authenticated' }, { status: 401 });
-  }
-
   try {
     const { searchParams } = new URL(req.url);
     const eventId = searchParams.get('eventId');
+    const accessToken = searchParams.get('accessToken');
+    const refreshToken = searchParams.get('refreshToken');
+
+    if (!accessToken) return Response.json({ error: 'Not authenticated' }, { status: 401 });
     if (!eventId) return Response.json({ error: 'eventId required' }, { status: 400 });
 
-    const auth = getOAuthClient(session.accessToken);
+    const auth = getOAuthClient(accessToken, refreshToken);
     const calendar = google.calendar({ version: 'v3', auth });
-
     await calendar.events.delete({ calendarId: 'primary', eventId });
     return Response.json({ success: true });
   } catch (err) {
-    console.error('Google Calendar DELETE error:', err);
-    return Response.json({ error: 'Failed to delete event' }, { status: 500 });
+    // Handle expired token explicitly
+    if (err.message?.includes('invalid_grant') || err.message?.includes('Invalid Credentials')) {
+      return Response.json({ error: 'Token expired. Please reconnect your Google account.' }, { status: 401 });
+    }
+    console.error('Google Calendar DELETE error:', err.message);
+    return Response.json({ error: err.message }, { status: 500 });
   }
 }

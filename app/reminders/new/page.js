@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession, signIn } from 'next-auth/react';
 import './reminder.css';
 
 const FREQ_LABELS = {
@@ -263,10 +264,12 @@ function MiniCalendar({ selectedDates, onChange }) {
 
 export default function SetReminderPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [reminders, setReminders] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingReminder, setEditingReminder] = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [deleteConfirmReminder, setDeleteConfirmReminder] = useState(null);
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -352,12 +355,27 @@ export default function SetReminderPage() {
     setShowForm(true);
   };
 
-  const handleDelete = async (id) => {
+  // ✅ FIXED: Now deletes from Google Calendar before deleting from DB
+  const handleDelete = async (reminder) => {
     try {
-      const res = await fetch(`/api/reminders/${id}`, { method: 'DELETE' });
-      res.ok ? (showToast('Reminder deleted.'), setReminders(prev => prev.filter(r => r.id !== id))) : showToast('Error deleting.');
+      // 1. Delete from Google Calendar first if synced
+      if (reminder.googleEventId && session?.accessToken) {
+        await fetch(
+          `/api/calendar/google?eventId=${reminder.googleEventId}&accessToken=${session.accessToken}&refreshToken=${session.refreshToken || ''}`,
+          { method: 'DELETE' }
+        );
+      }
+
+      // 2. Then delete from DB
+      const res = await fetch(`/api/reminders/${reminder.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        showToast('Reminder deleted.');
+        setReminders(prev => prev.filter(r => r.id !== reminder.id));
+      } else {
+        showToast('Error deleting.');
+      }
     } catch { showToast('Network error.'); }
-    setDeleteConfirmId(null);
+    setDeleteConfirmReminder(null);
   };
 
   const showToast = (msg) => { setSuccessMsg(msg); setTimeout(() => setSuccessMsg(''), 3000); };
@@ -366,15 +384,22 @@ export default function SetReminderPage() {
 
   return (
     <div className="reminder-container">
-      {deleteConfirmId !== null && (
+      {deleteConfirmReminder !== null && (
         <div className="modal-overlay">
           <div className="modal-card">
             <div className="modal-icon">🗑️</div>
             <h3 className="modal-title">Delete Reminder</h3>
-            <p className="modal-text">Are you sure you want to delete this reminder? This cannot be undone.</p>
+            <p className="modal-text">
+              Are you sure you want to delete <strong>{deleteConfirmReminder.medicine}</strong>? This cannot be undone.
+            </p>
+            {deleteConfirmReminder.googleEventId && (
+              <p style={{fontSize:'12px',color:'#4285F4',background:'#e8f0fe',padding:'8px 12px',borderRadius:'8px',margin:'0 0 8px'}}>
+                📅 This will also be removed from Google Calendar.
+              </p>
+            )}
             <div className="modal-buttons">
-              <button className="modal-cancel" onClick={() => setDeleteConfirmId(null)}>Cancel</button>
-              <button className="modal-confirm modal-danger" onClick={() => handleDelete(deleteConfirmId)}>Delete</button>
+              <button className="modal-cancel" onClick={() => setDeleteConfirmReminder(null)}>Cancel</button>
+              <button className="modal-confirm modal-danger" onClick={() => handleDelete(deleteConfirmReminder)}>Delete</button>
             </div>
           </div>
         </div>
@@ -420,11 +445,14 @@ export default function SetReminderPage() {
                             {r.frequency === 'custom' && r.customDates?.length > 0 && ` · ${r.customDates.length} dates`}
                             {r.endDate && ` · until ${new Date(r.endDate + 'T00:00:00').toLocaleDateString('default',{month:'short',day:'numeric'})}`}
                           </span>
+                          {r.googleEventId && (
+                            <span style={{fontSize:'10px',fontWeight:'800',color:'#4285F4',background:'#e8f0fe',padding:'2px 7px',borderRadius:'20px',display:'inline-block',marginTop:'4px'}}>✓ In Google Cal</span>
+                          )}
                         </div>
                       </div>
                       <div className="reminder-card-actions">
                         <button className="action-edit-btn" onClick={() => handleEdit(r)}>✏️</button>
-                        <button className="action-delete-btn" onClick={() => setDeleteConfirmId(r.id)}>🗑️</button>
+                        <button className="action-delete-btn" onClick={() => setDeleteConfirmReminder(r)}>🗑️</button>
                       </div>
                     </div>
                   );
@@ -471,7 +499,6 @@ export default function SetReminderPage() {
               {formData.frequency === 'weekly'      && <p className="field-hint">📅 Repeats every <strong>{getDayName()}</strong>.</p>}
               {formData.frequency === 'twice-daily' && <p className="field-hint">📅 Two reminders per day — set both times below.</p>}
 
-              {/* ── Until toggle ── */}
               {showsUntil && (
                 <div className="until-row">
                   <button type="button"
