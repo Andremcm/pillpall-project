@@ -1,4 +1,29 @@
 import { prisma } from '@/lib/prisma';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
+import { google } from 'googleapis';
+
+function getOAuthClient(accessToken, refreshToken = null) {
+  const auth = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    process.env.GOOGLE_REDIRECT_URI
+  );
+  auth.setCredentials({ access_token: accessToken, refresh_token: refreshToken });
+  return auth;
+}
+
+// Handles both formats: JSON array [{date,eventId}] and plain string
+function parseEventIds(raw) {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed.map(e => e.eventId).filter(Boolean);
+    return [raw];
+  } catch {
+    return [raw];
+  }
+}
 
 // PUT /api/reminders/[id]
 export async function PUT(req, { params }) {
@@ -62,7 +87,36 @@ export async function DELETE(req, { params }) {
 
     if (!reminder) return Response.json({ error: 'Reminder not found' }, { status: 404 });
 
-    await prisma.log.deleteMany({ where: { reminderId: id } });        // ← was reminderLog
+    // ✅ Delete from Google Calendar server-side using getServerSession
+    // This works from ANY page — no need for client to pass tokens
+    if (reminder.googleEventId) {
+      try {
+        const session = await getServerSession(authOptions);
+        if (session?.accessToken) {
+          const eventIds = parseEventIds(reminder.googleEventId);
+          const auth = getOAuthClient(session.accessToken, session.refreshToken);
+          const calendar = google.calendar({ version: 'v3', auth });
+
+          await Promise.allSettled(
+            eventIds.map(eventId =>
+              calendar.events.delete({ calendarId: 'primary', eventId })
+                .catch(err => {
+                  // 404/410 = already deleted from Google Cal manually, that's fine
+                  if (err.code !== 404 && err.code !== 410) {
+                    console.warn('GCal delete error for event', eventId, err.message);
+                  }
+                })
+            )
+          );
+        }
+      } catch (gcalErr) {
+        // Don't block DB delete if Google Cal fails
+        console.warn('Google Calendar delete failed (continuing with DB delete):', gcalErr.message);
+      }
+    }
+
+    // ✅ Delete from DB (always runs regardless of Google Cal result)
+    await prisma.log.deleteMany({ where: { reminderId: id } });
     await prisma.reminder.delete({ where: { id } });
     await prisma.medication.delete({ where: { id: reminder.medicationId } });
 

@@ -25,7 +25,18 @@ function generateColor(name) {
   return MED_COLORS[Math.abs(hash) % MED_COLORS.length];
 }
 
-// ── Tap List Time Picker ─────────────────────────────────────────────
+// Parse googleEventId — custom reminders store JSON array [{date, eventId}], recurring store plain string
+function parseEventIds(raw) {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed.map(e => e.eventId).filter(Boolean);
+    return [raw]; // legacy plain string
+  } catch {
+    return [raw]; // plain string (recurring)
+  }
+}
+
 function TapTimePicker({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const [hour, setHour]     = useState('08');
@@ -125,7 +136,6 @@ function TapTimePicker({ value, onChange }) {
   );
 }
 
-// ── Custom End Date Picker ───────────────────────────────────────────
 function EndDatePicker({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const [viewDate, setViewDate] = useState(() => {
@@ -172,7 +182,6 @@ function EndDatePicker({ value, onChange }) {
         <span className="edp-display">{displayValue}</span>
         <span className="edp-chevron">{open ? '▲' : '▼'}</span>
       </button>
-
       {open && (
         <div className="edp-panel">
           <div className="edp-nav">
@@ -196,8 +205,7 @@ function EndDatePicker({ value, onChange }) {
               return (
                 <button key={i} type="button"
                   className={`edp-day${isPast ? ' past' : ''}${isSelected ? ' selected' : ''}${isToday ? ' today' : ''}`}
-                  onClick={() => selectDay(day)}
-                  disabled={isPast}>
+                  onClick={() => selectDay(day)} disabled={isPast}>
                   {day}
                 </button>
               );
@@ -268,7 +276,6 @@ export default function SetReminderPage() {
   const [reminders, setReminders] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingReminder, setEditingReminder] = useState(null);
-  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [deleteConfirmReminder, setDeleteConfirmReminder] = useState(null);
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(true);
@@ -355,32 +362,63 @@ export default function SetReminderPage() {
     setShowForm(true);
   };
 
-  // ✅ FIXED: Now deletes from Google Calendar before deleting from DB
+  // ✅ FIXED: Deletes ALL Google Calendar events (handles both array and plain string eventIds)
   const handleDelete = async (reminder) => {
     try {
-      // 1. Delete from Google Calendar first if synced
-      if (reminder.googleEventId && session?.accessToken) {
-        await fetch(
-          `/api/calendar/google?eventId=${reminder.googleEventId}&accessToken=${session.accessToken}&refreshToken=${session.refreshToken || ''}`,
-          { method: 'DELETE' }
+      const hadGcal = isSyncedToGcal(reminder);
+
+      // Pass googleEventId + tokens to the DELETE endpoint so server handles Google Cal cleanup
+      // This works even when client-side session tokens aren't available
+      let accessToken = session?.accessToken;
+      let refreshToken = session?.refreshToken;
+
+      // Fallback: fetch session from server if client doesn't have tokens
+      if (!accessToken) {
+        try {
+          const s = await fetch('/api/auth/session');
+          const sd = await s.json();
+          accessToken = sd?.accessToken;
+          refreshToken = sd?.refreshToken;
+        } catch {}
+      }
+
+      // Delete Google Calendar events first if we have a token
+      if (hadGcal && accessToken) {
+        const eventIds = parseEventIds(reminder.googleEventId);
+        await Promise.allSettled(
+          eventIds.map(eventId =>
+            fetch(
+              `/api/calendar/google?eventId=${encodeURIComponent(eventId)}&accessToken=${encodeURIComponent(accessToken)}&refreshToken=${encodeURIComponent(refreshToken || '')}`,
+              { method: 'DELETE' }
+            )
+          )
         );
       }
 
-      // 2. Then delete from DB
+      // Always delete from DB
       const res = await fetch(`/api/reminders/${reminder.id}`, { method: 'DELETE' });
       if (res.ok) {
-        showToast('Reminder deleted.');
+        showToast(hadGcal && accessToken ? '🗑️ Deleted from app & Google Calendar.' : 'Reminder deleted.');
         setReminders(prev => prev.filter(r => r.id !== reminder.id));
       } else {
         showToast('Error deleting.');
       }
-    } catch { showToast('Network error.'); }
+    } catch {
+      showToast('Network error.');
+    }
     setDeleteConfirmReminder(null);
   };
 
   const showToast = (msg) => { setSuccessMsg(msg); setTimeout(() => setSuccessMsg(''), 3000); };
   const getDayName = () => ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date().getDay()];
   const showsUntil = ['daily','twice-daily'].includes(formData.frequency);
+
+  // Check if reminder has any synced Google Calendar events
+  const isSyncedToGcal = (reminder) => {
+    if (!reminder.googleEventId) return false;
+    const ids = parseEventIds(reminder.googleEventId);
+    return ids.length > 0;
+  };
 
   return (
     <div className="reminder-container">
@@ -392,7 +430,7 @@ export default function SetReminderPage() {
             <p className="modal-text">
               Are you sure you want to delete <strong>{deleteConfirmReminder.medicine}</strong>? This cannot be undone.
             </p>
-            {deleteConfirmReminder.googleEventId && (
+            {isSyncedToGcal(deleteConfirmReminder) && (
               <p style={{fontSize:'12px',color:'#4285F4',background:'#e8f0fe',padding:'8px 12px',borderRadius:'8px',margin:'0 0 8px'}}>
                 📅 This will also be removed from Google Calendar.
               </p>
@@ -445,8 +483,10 @@ export default function SetReminderPage() {
                             {r.frequency === 'custom' && r.customDates?.length > 0 && ` · ${r.customDates.length} dates`}
                             {r.endDate && ` · until ${new Date(r.endDate + 'T00:00:00').toLocaleDateString('default',{month:'short',day:'numeric'})}`}
                           </span>
-                          {r.googleEventId && (
-                            <span style={{fontSize:'10px',fontWeight:'800',color:'#4285F4',background:'#e8f0fe',padding:'2px 7px',borderRadius:'20px',display:'inline-block',marginTop:'4px'}}>✓ In Google Cal</span>
+                          {isSyncedToGcal(r) && (
+                            <span style={{fontSize:'10px',fontWeight:'800',color:'#4285F4',background:'#e8f0fe',padding:'2px 7px',borderRadius:'20px',display:'inline-block',marginTop:'4px'}}>
+                              ✓ In Google Cal
+                            </span>
                           )}
                         </div>
                       </div>

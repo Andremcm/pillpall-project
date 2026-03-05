@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { useSession, signIn } from 'next-auth/react';
+import { useRouter, usePathname } from 'next/navigation';
+import { useSession, signIn, signOut } from 'next-auth/react';
 import './calendar.css';
 
 const MED_COLORS = ['#e53935','#d81b60','#8e24aa','#3949ab','#1e88e5','#00897b','#43a047','#f4511e','#fb8c00','#f6bf26','#33b679','#0b8043'];
@@ -154,12 +154,22 @@ export default function CalendarPage() {
 
   const today = new Date(); today.setHours(0,0,0,0);
 
-  useEffect(() => { fetchData(); }, []);
+  // Re-fetch whenever this page becomes visible (handles Next.js client-side nav)
+  useEffect(() => {
+    fetchData();
+    const onVisible = () => { if (document.visibilityState === 'visible') fetchData(true); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
 
-  const fetchData = async () => {
-    setLoading(true);
+  // Also re-fetch when pathname changes back to this page
+  const pathname = usePathname();
+  useEffect(() => { fetchData(true); }, [pathname]);
+
+  const fetchData = async (silent = false) => {
+    if (!silent) setLoading(true);
     const userId = localStorage.getItem('userId');
-    if (!userId) { setLoading(false); return; }
+    if (!userId) { if (!silent) setLoading(false); return; }
     try {
       const res = await fetch(`/api/reminders?userId=${userId}`);
       const data = await res.json();
@@ -167,12 +177,10 @@ export default function CalendarPage() {
         setAllReminders(data);
         const ids = {};
         data.forEach(r => {
-          if (r.googleEventId) {
-            ids[`${r.id}_${r.isSecond?'2':'1'}`] = r.googleEventId;
-          }
+          const key = `${r.id}_${r.isSecond ? '2' : '1'}`;
+          if (r.googleEventId) ids[key] = r.googleEventId;
         });
         setGoogleEventIds(ids);
-
         const logsMap = {};
         const todayStr = toDateStr(today);
         data.forEach(r => {
@@ -182,16 +190,84 @@ export default function CalendarPage() {
         setLogs(logsMap);
       }
     } catch (err) { console.error(err); }
-    setLoading(false);
+    if (!silent) setLoading(false);
   };
 
   const showToast = (msg) => { setToast(msg); setTimeout(()=>setToast(''), 2500); };
 
-  const syncToGoogle = async (reminder, dateStr) => {
+  // Parse stored googleEventId — custom reminders store JSON array of {date, eventId}
+  const parseEventIds = (raw) => {
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch { return raw; } // legacy: plain string
+  };
+
+  // Find eventId for a specific date (custom) or the single id (recurring)
+  const getEventIdForDate = (reminder, dateStr) => {
+    const baseKey = `${reminder.id}_${reminder.isSecond ? '2' : '1'}`;
+    const stored = googleEventIds[baseKey] || reminder.googleEventId || null;
+    if (!stored) return null;
+    if (reminder.frequency === 'custom') {
+      const parsed = parseEventIds(stored);
+      if (Array.isArray(parsed)) {
+        const match = parsed.find(e => e.date === dateStr);
+        return match?.eventId || null;
+      }
+    }
+    return typeof stored === 'string' ? stored : null;
+  };
+
+  // Save eventId for a date — custom reminders accumulate an array, recurring store plain string
+  const saveEventId = async (reminder, dateStr, newEventId) => {
+    const baseKey = `${reminder.id}_${reminder.isSecond ? '2' : '1'}`;
+    let toStore;
+
+    if (reminder.frequency === 'custom') {
+      const existing = parseEventIds(googleEventIds[baseKey] || reminder.googleEventId);
+      const arr = Array.isArray(existing) ? [...existing] : [];
+      const idx = arr.findIndex(e => e.date === dateStr);
+      if (idx >= 0) arr[idx] = { date: dateStr, eventId: newEventId };
+      else arr.push({ date: dateStr, eventId: newEventId });
+      toStore = JSON.stringify(arr);
+    } else {
+      toStore = newEventId;
+    }
+
+    setGoogleEventIds(prev => ({ ...prev, [baseKey]: toStore }));
+    setAllReminders(prev => prev.map(r =>
+      r.id === reminder.id ? { ...r, googleEventId: toStore } : r
+    ));
+
+    await fetch(`/api/reminders/${reminder.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        medicine: reminder.medicine,
+        dosage: reminder.dosage,
+        frequency: reminder.frequency,
+        time: reminder.time,
+        customDates: reminder.customDates || [],
+        endDate: reminder.endDate || null,
+        googleEventId: toStore,
+      }),
+    });
+  };
+
+  // Sync a single reminder for a single date — idempotent via uniqueKey fingerprint
+  const syncToGoogle = async (reminder, dateStr, localEventIdMap = null) => {
     if (!session?.accessToken) { signIn('google'); return false; }
 
-    const baseKey = `${reminder.id}_${reminder.isSecond?'2':'1'}`;
-    const existingEventId = googleEventIds[baseKey] || null;
+    // Build a stable unique key: reminderId_date for custom, reminderId for recurring
+    const uniqueKey = reminder.frequency === 'custom'
+      ? `pillpal_${reminder.id}_${dateStr}`
+      : `pillpal_${reminder.id}`;
+
+    // Get existing eventId — check local map first (avoids React state timing issues in loops)
+    let existingEventId = null;
+    if (localEventIdMap) {
+      existingEventId = localEventIdMap[uniqueKey] || null;
+    } else {
+      existingEventId = getEventIdForDate(reminder, dateStr);
+    }
 
     try {
       const res = await fetch('/api/calendar/google', {
@@ -206,33 +282,19 @@ export default function CalendarPage() {
           customDates: reminder.customDates || [],
           date: dateStr,
           eventId: existingEventId,
+          uniqueKey, // ✅ fingerprint for server-side dedup lookup
           accessToken: session.accessToken,
           refreshToken: session.refreshToken,
         }),
       });
-
       if (res.ok) {
         const data = await res.json();
-        setGoogleEventIds(prev => ({ ...prev, [baseKey]: data.eventId }));
-
-        await fetch(`/api/reminders/${reminder.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            medicine: reminder.medicine,
-            dosage: reminder.dosage,
-            frequency: reminder.frequency,
-            time: reminder.time,
-            customDates: reminder.customDates || [],
-            endDate: reminder.endDate || null,
-            googleEventId: data.eventId,
-          }),
-        });
-
+        // Update local map immediately (so next loop iteration sees it)
+        if (localEventIdMap) localEventIdMap[uniqueKey] = data.eventId;
+        await saveEventId(reminder, dateStr, data.eventId);
         return true;
       }
-      const err = await res.json();
-      console.error('Sync error:', err);
+      console.error('Sync error:', await res.json());
       return false;
     } catch (e) {
       console.error('Sync exception:', e);
@@ -240,42 +302,83 @@ export default function CalendarPage() {
     }
   };
 
+  // Add to Calendar — syncs ALL dates for custom reminders, single event for recurring
   const syncAllToGoogle = async () => {
     if (!session?.accessToken) { signIn('google'); return; }
     setSyncingAll(true);
-    const dateStr = toDateStr(selectedDate);
+    showToast('Adding to calendar...');
+
+    const todayStr = toDateStr(today);
+
+    // Build a local map from current state + allReminders so loop doesn't depend on React state timing
+    const localEventIdMap = {};
+    allReminders.forEach(r => {
+      const stored = googleEventIds[`${r.id}_${r.isSecond?'2':'1'}`] || r.googleEventId;
+      if (!stored) return;
+      if (r.frequency === 'custom') {
+        const parsed = parseEventIds(stored);
+        if (Array.isArray(parsed)) {
+          parsed.forEach(e => { localEventIdMap[`pillpal_${r.id}_${e.date}`] = e.eventId; });
+        }
+      } else {
+        localEventIdMap[`pillpal_${r.id}`] = stored;
+      }
+    });
+
     let count = 0;
     for (const reminder of selectedReminders) {
-      const ok = await syncToGoogle(reminder, dateStr);
-      if (ok) count++;
+      if (reminder.frequency === 'custom' && reminder.customDates?.length > 0) {
+        const futureDates = reminder.customDates.filter(d => d >= todayStr);
+        for (const dateStr of futureDates) {
+          const ok = await syncToGoogle(reminder, dateStr, localEventIdMap);
+          if (ok) count++;
+        }
+      } else {
+        const ok = await syncToGoogle(reminder, toDateStr(selectedDate), localEventIdMap);
+        if (ok) count++;
+      }
     }
-    showToast(count > 0 ? `✓ Synced ${count} reminder${count>1?'s':''} to Google Calendar!` : 'Failed to sync.');
+
+    showToast(count > 0 ? `✓ Added ${count} event${count>1?'s':''} to Google Calendar!` : 'Nothing to add.');
     setSyncingAll(false);
   };
 
-  // ✅ FIXED: Now deletes from Google Calendar before deleting from DB
+  // Delete reminder — also removes ALL associated Google Calendar events
   const handleDelete = async (reminder) => {
+    const baseKey = `${reminder.id}_${reminder.isSecond ? '2' : '1'}`;
+    const stored = googleEventIds[baseKey] || reminder.googleEventId;
+
     try {
-      // 1. Delete from Google Calendar first
-      const baseKey = `${reminder.id}_${reminder.isSecond ? '2' : '1'}`;
-      const eventId = googleEventIds[baseKey] || reminder.googleEventId;
-      if (eventId && session?.accessToken) {
-        await fetch(
-          `/api/calendar/google?eventId=${eventId}&accessToken=${session.accessToken}&refreshToken=${session.refreshToken || ''}`,
-          { method: 'DELETE' }
-        );
+      if (stored && session?.accessToken) {
+        // Collect all eventIds to delete (custom = array, recurring = single string)
+        const parsed = parseEventIds(stored);
+        const eventIds = Array.isArray(parsed)
+          ? parsed.map(e => e.eventId)
+          : (stored ? [stored] : []);
+
+        for (const eventId of eventIds) {
+          try {
+            await fetch(
+              `/api/calendar/google?eventId=${encodeURIComponent(eventId)}&accessToken=${encodeURIComponent(session.accessToken)}&refreshToken=${encodeURIComponent(session.refreshToken || '')}`,
+              { method: 'DELETE' }
+            );
+          } catch (gcalErr) {
+            console.warn('Google Calendar delete failed (continuing):', gcalErr);
+          }
+        }
       }
 
-      // 2. Then delete from DB
       const res = await fetch(`/api/reminders/${reminder.id}`, { method: 'DELETE' });
       if (res.ok) {
-        showToast('Reminder deleted.');
+        showToast(stored ? '🗑️ Deleted from app & Google Calendar.' : 'Reminder deleted.');
         setAllReminders(prev => prev.filter(r => r.id !== reminder.id));
         setGoogleEventIds(prev => { const n = { ...prev }; delete n[baseKey]; return n; });
       } else {
-        showToast('Error deleting.');
+        showToast('Error deleting reminder.');
       }
-    } catch { showToast('Network error.'); }
+    } catch {
+      showToast('Network error.');
+    }
     setDeleteConfirmReminder(null);
   };
 
@@ -369,7 +472,6 @@ export default function CalendarPage() {
   const todayReminders    = getRemindersForDate(today);
   const takenTodayCount   = todayReminders.filter(r=>isTakenOnDate(r,today)).length;
   const formatSelectedDate = () => selectedDate.toLocaleDateString('default',{weekday:'long',month:'long',day:'numeric'});
-  const selectedDateStr = toDateStr(selectedDate);
 
   const inputStyle = {padding:'12px',border:'2px solid #e0e0e0',borderRadius:'10px',fontSize:'15px',fontFamily:'Nunito,sans-serif',fontWeight:'600',outline:'none',color:'#222',width:'100%',boxSizing:'border-box'};
   const labelStyle = {fontSize:'12px',fontWeight:'800',color:'#2e7d32',textTransform:'uppercase',letterSpacing:'0.5px',fontFamily:'Nunito,sans-serif'};
@@ -387,11 +489,23 @@ export default function CalendarPage() {
             <p style={{margin:'0 0 8px',fontSize:'14px',color:'#555',fontFamily:'Nunito,sans-serif'}}>
               Are you sure you want to delete <strong>{deleteConfirmReminder.medicine}</strong>?
             </p>
-            {googleEventIds[`${deleteConfirmReminder.id}_${deleteConfirmReminder.isSecond?'2':'1'}`] && (
-              <p style={{margin:'0 0 4px',fontSize:'12px',color:'#4285F4',fontFamily:'Nunito,sans-serif',background:'#e8f0fe',padding:'8px 12px',borderRadius:'8px'}}>
-                📅 This will also be removed from Google Calendar.
-              </p>
-            )}
+            {(() => {
+              const baseKey = `${deleteConfirmReminder.id}_${deleteConfirmReminder.isSecond?'2':'1'}`;
+              const stored = googleEventIds[baseKey] || deleteConfirmReminder.googleEventId;
+              // hasSynced: true if any Google Cal event exists (plain string or non-empty array)
+              let hasSynced = false;
+              if (stored) {
+                try {
+                  const p = JSON.parse(stored);
+                  hasSynced = Array.isArray(p) ? p.length > 0 : !!stored;
+                } catch { hasSynced = !!stored; }
+              }
+              return hasSynced ? (
+                <p style={{margin:'0 0 4px',fontSize:'12px',color:'#4285F4',fontFamily:'Nunito,sans-serif',background:'#e8f0fe',padding:'8px 12px',borderRadius:'8px'}}>
+                  📅 This will also be removed from Google Calendar.
+                </p>
+              ) : null;
+            })()}
             <div style={{display:'flex',gap:'10px',marginTop:'20px'}}>
               <button onClick={()=>setDeleteConfirmReminder(null)} style={{flex:1,padding:'12px',background:'#f0f0f0',border:'2px solid #e0e0e0',borderRadius:'12px',fontSize:'14px',fontWeight:'800',cursor:'pointer',fontFamily:'Nunito,sans-serif',color:'#555'}}>Cancel</button>
               <button onClick={()=>handleDelete(deleteConfirmReminder)} style={{flex:1,padding:'12px',background:'#ef5350',border:'none',borderRadius:'12px',fontSize:'14px',fontWeight:'800',color:'white',cursor:'pointer',fontFamily:'Nunito,sans-serif'}}>Delete</button>
@@ -473,6 +587,11 @@ export default function CalendarPage() {
             <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
               <img src={session.user?.image} alt="" style={{width:'28px',height:'28px',borderRadius:'50%',border:'2px solid white'}}/>
               <span style={{color:'white',fontSize:'12px',fontWeight:'700',fontFamily:'Nunito,sans-serif'}}>{session.user?.name?.split(' ')[0]}</span>
+              <button
+                onClick={() => signOut({ redirect: false })}
+                style={{background:'rgba(255,255,255,0.2)',border:'1px solid rgba(255,255,255,0.5)',borderRadius:'8px',padding:'4px 10px',cursor:'pointer',fontSize:'11px',fontWeight:'800',color:'white',fontFamily:'Nunito,sans-serif'}}>
+                Sign out
+              </button>
             </div>
           ) : (
             <button onClick={()=>signIn('google')} style={{display:'flex',alignItems:'center',gap:'6px',background:'white',border:'none',borderRadius:'10px',padding:'6px 12px',cursor:'pointer',fontSize:'12px',fontWeight:'800',color:'#2e7d32',fontFamily:'Nunito,sans-serif'}}>
@@ -516,13 +635,51 @@ export default function CalendarPage() {
         <div className="schedule-section">
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px'}}>
             <h3 className="schedule-heading" style={{margin:0}}>📋 {formatSelectedDate()}</h3>
-            {selectedReminders.length>0&&(
-              <button onClick={syncAllToGoogle} disabled={syncingAll}
-                style={{display:'flex',alignItems:'center',gap:'6px',padding:'8px 14px',background:session?'white':'#f5f5f5',border:'2px solid #e0e0e0',borderRadius:'10px',cursor:syncingAll?'wait':'pointer',fontSize:'12px',fontWeight:'800',color:session?'#2e7d32':'#aaa',fontFamily:'Nunito,sans-serif',whiteSpace:'nowrap',boxShadow:'0 2px 6px rgba(0,0,0,0.06)'}}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="17" rx="2" stroke="#4285F4" strokeWidth="2"/><path d="M16 2v4M8 2v4M3 10h18" stroke="#4285F4" strokeWidth="2" strokeLinecap="round"/><rect x="8" y="13" width="3" height="3" rx="0.5" fill="#34A853"/><rect x="13" y="13" width="3" height="3" rx="0.5" fill="#FBBC05"/><rect x="8" y="17" width="3" height="3" rx="0.5" fill="#EA4335"/></svg>
-                {syncingAll?'Syncing...':session?'Sync to Google Cal':'Connect Google'}
-              </button>
-            )}
+
+            {selectedReminders.length > 0 && (() => {
+              // Check if every reminder on this date is already synced
+              // Uses reminder.googleEventId from DB (always fresh) + state as fallback
+              const isReminderSynced = (r) => {
+                const bk = `${r.id}_${r.isSecond?'2':'1'}`;
+                const stored = googleEventIds[bk] || r.googleEventId || null;
+                if (!stored) return false;
+                if (r.frequency === 'custom') {
+                  // For custom: check if this specific date has an eventId
+                  try {
+                    const parsed = JSON.parse(stored);
+                    if (Array.isArray(parsed)) {
+                      return parsed.some(e => e.date === toDateStr(selectedDate) && e.eventId);
+                    }
+                  } catch {}
+                  return false;
+                }
+                return true; // recurring: any stored value means synced
+              };
+              const allSynced = selectedReminders.every(isReminderSynced);
+              return (
+                <button
+                  onClick={allSynced ? undefined : syncAllToGoogle}
+                  disabled={syncingAll || allSynced}
+                  style={{
+                    display:'flex', alignItems:'center', gap:'6px',
+                    padding:'8px 14px',
+                    background: allSynced ? '#f5f5f5' : session ? '#e8f0fe' : '#f5f5f5',
+                    border: `2px solid ${allSynced ? '#e0e0e0' : session ? '#c5d8fb' : '#e0e0e0'}`,
+                    borderRadius:'10px',
+                    cursor: (syncingAll || allSynced) ? 'default' : 'pointer',
+                    fontSize:'12px', fontWeight:'800',
+                    color: allSynced ? '#aaa' : session ? '#4285F4' : '#aaa',
+                    fontFamily:'Nunito,sans-serif', whiteSpace:'nowrap',
+                    boxShadow:'0 2px 6px rgba(0,0,0,0.06)'
+                  }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <rect x="3" y="4" width="18" height="17" rx="2" stroke="currentColor" strokeWidth="2"/>
+                    <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                  {syncingAll ? 'Adding...' : allSynced ? 'Already in Calendar' : session ? 'Add to Calendar' : 'Connect Google'}
+                </button>
+              );
+            })()}
           </div>
 
           {loading ? (
@@ -535,7 +692,19 @@ export default function CalendarPage() {
                 const isPastDate=isSelectedPast();
                 const isTodayDate=isSelectedToday();
                 const baseKey=`${reminder.id}_${reminder.isSecond?'2':'1'}`;
-                const isSynced=!!googleEventIds[baseKey];
+                const _stored = googleEventIds[baseKey] || reminder.googleEventId || null;
+                const isSynced = (() => {
+                  if (!_stored) return false;
+                  if (reminder.frequency === 'custom') {
+                    try {
+                      const _parsed = JSON.parse(_stored);
+                      if (Array.isArray(_parsed)) return _parsed.some(e => e.date === toDateStr(selectedDate) && e.eventId);
+                    } catch {}
+                    return false;
+                  }
+                  return true;
+                })();
+
                 return (
                   <div key={`${reminder.id}_${idx}`} className={`schedule-item ${taken?'taken':''} ${isPastDate&&!taken?'missed':''}`} style={{borderLeftColor:color}}>
                     <div className="schedule-left">
@@ -548,7 +717,11 @@ export default function CalendarPage() {
                             {reminder.frequency==='twice-daily'?(reminder.isSecond?'2nd dose':'1st dose'):(reminder.frequency||'daily')}
                             {reminder.endDate?` · until ${new Date(reminder.endDate+'T00:00:00').toLocaleDateString('default',{month:'short',day:'numeric'})}` :''}
                           </span>
-                          {isSynced&&<span style={{fontSize:'10px',fontWeight:'800',color:'#4285F4',background:'#e8f0fe',padding:'2px 7px',borderRadius:'20px'}}>✓ In Google Cal</span>}
+                          {isSynced && (
+                            <span style={{fontSize:'10px',fontWeight:'800',color:'#4285F4',background:'#e8f0fe',padding:'2px 7px',borderRadius:'20px'}}>
+                              ✓ In Google Cal
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
