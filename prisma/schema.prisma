@@ -14,6 +14,7 @@ model User {
   password    String
   role        String       @default("user")
   medications Medication[]
+  feedbacks   Feedback[]
 }
 
 model Medication {
@@ -24,7 +25,7 @@ model Medication {
   frequency   String
   color       String     @default("#43a047")
   startDate   DateTime   @default(now())
-  endDate     String?    
+  endDate     String?
   dayOfWeek   Int?
   customDates String?
   reminders   Reminder[]
@@ -32,13 +33,13 @@ model Medication {
 }
 
 model Reminder {
-  id           Int        @id @default(autoincrement())
-  medicationId Int
-  reminderTime DateTime
-  secondTime   DateTime?
-  googleEventId  String?
-  logs         Log[]
-  medication   Medication @relation(fields: [medicationId], references: [id])
+  id            Int        @id @default(autoincrement())
+  medicationId  Int
+  reminderTime  DateTime
+  secondTime    DateTime?
+  googleEventId String?
+  logs          Log[]
+  medication    Medication @relation(fields: [medicationId], references: [id])
 }
 
 model Log {
@@ -48,4 +49,14 @@ model Log {
   timestamp  DateTime @default(now())
   takenDate  String?
   reminder   Reminder @relation(fields: [reminderId], references: [id])
+}
+
+model Feedback {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  type      String
+  message   String
+  userEmail String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
 }
